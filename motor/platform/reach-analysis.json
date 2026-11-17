@@ -1,0 +1,172 @@
+{
+ "core": "chunk_0261_212898705.js",
+ "core_vfs": "chunk-n21h4aaz.js",
+ "core_dependents": 411,
+ "reach_by_api": {
+  "node:path": {
+   "seeds": 61,
+   "reachable": 269,
+   "in_core_dependents": 239
+  },
+  "node:fs": {
+   "seeds": 28,
+   "reachable": 266,
+   "in_core_dependents": 240
+  },
+  "node:crypto": {
+   "seeds": 21,
+   "reachable": 253,
+   "in_core_dependents": 228
+  },
+  "node:os": {
+   "seeds": 50,
+   "reachable": 253,
+   "in_core_dependents": 228
+  },
+  "node:url": {
+   "seeds": 19,
+   "reachable": 244,
+   "in_core_dependents": 221
+  },
+  "node:buffer": {
+   "seeds": 9,
+   "reachable": 213,
+   "in_core_dependents": 190
+  },
+  "node:stream": {
+   "seeds": 7,
+   "reachable": 107,
+   "in_core_dependents": 88
+  },
+  "node:fs/promises": {
+   "seeds": 30,
+   "reachable": 100,
+   "in_core_dependents": 93
+  },
+  "node:worker_threads": {
+   "seeds": 3,
+   "reachable": 83,
+   "in_core_dependents": 70
+  },
+  "node:events": {
+   "seeds": 4,
+   "reachable": 77,
+   "in_core_dependents": 71
+  },
+  "node:net": {
+   "seeds": 6,
+   "reachable": 76,
+   "in_core_dependents": 71
+  },
+  "node:https": {
+   "seeds": 2,
+   "reachable": 76,
+   "in_core_dependents": 71
+  },
+  "node:util": {
+   "seeds": 9,
+   "reachable": 75,
+   "in_core_dependents": 70
+  },
+  "node:async_hooks": {
+   "seeds": 3,
+   "reachable": 23,
+   "in_core_dependents": 23
+  },
+  "node:module": {
+   "seeds": 6,
+   "reachable": 21,
+   "in_core_dependents": 21
+  },
+  "node:readline": {
+   "seeds": 3,
+   "reachable": 20,
+   "in_core_dependents": 19
+  },
+  "node:child_process": {
+   "seeds": 8,
+   "reachable": 16,
+   "in_core_dependents": 16
+  },
+  "node:process": {
+   "seeds": 3,
+   "reachable": 15,
+   "in_core_dependents": 14
+  },
+  "node:tty": {
+   "seeds": 2,
+   "reachable": 13,
+   "in_core_dependents": 12
+  },
+  "bun:sqlite": {
+   "seeds": 2,
+   "reachable": 9,
+   "in_core_dependents": 9
+  },
+  "bun:ffi": {
+   "seeds": 2,
+   "reachable": 8,
+   "in_core_dependents": 8
+  },
+  "node:stream/promises": {
+   "seeds": 2,
+   "reachable": 8,
+   "in_core_dependents": 8
+  },
+  "node:zlib": {
+   "seeds": 2,
+   "reachable": 8,
+   "in_core_dependents": 8
+  },
+  "node:assert": {
+   "seeds": 1,
+   "reachable": 6,
+   "in_core_dependents": 6
+  },
+  "Bun.file": {
+   "seeds": 5,
+   "reachable": 4,
+   "in_core_dependents": 4
+  },
+  "node:http": {
+   "seeds": 3,
+   "reachable": 3,
+   "in_core_dependents": 3
+  },
+  "Bun.serve": {
+   "seeds": 1,
+   "reachable": 2,
+   "in_core_dependents": 2
+  },
+  "Bun.env": {
+   "seeds": 1,
+   "reachable": 2,
+   "in_core_dependents": 2
+  },
+  "Bun.write": {
+   "seeds": 1,
+   "reachable": 2,
+   "in_core_dependents": 2
+  },
+  "Bun.spawn": {
+   "seeds": 1,
+   "reachable": 2,
+   "in_core_dependents": 2
+  },
+  "node:stream/consumers": {
+   "seeds": 1,
+   "reachable": 2,
+   "in_core_dependents": 2
+  },
+  "node:timers": {
+   "seeds": 2,
+   "reachable": 0,
+   "in_core_dependents": 0
+  },
+  "node:perf_hooks": {
+   "seeds": 1,
+   "reachable": 0,
+   "in_core_dependents": 0
+  }
+ }
+}

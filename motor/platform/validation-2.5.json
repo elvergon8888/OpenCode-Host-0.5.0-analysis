@@ -1,0 +1,42 @@
+{
+ "contacts_total": 565,
+ "contacts_unmapped": 0,
+ "apis_total": 34,
+ "apis_mapped": 34,
+ "interfaces": [
+  "DatabaseProvider",
+  "EnvironmentProvider",
+  "FilesystemProvider",
+  "NetworkProvider",
+  "ProcessProvider",
+  "PtyProvider",
+  "RuntimeProvider",
+  "WorkerProvider"
+ ],
+ "by_interface": {
+  "FilesystemProvider": 138,
+  "NetworkProvider": 44,
+  "RuntimeProvider": 277,
+  "EnvironmentProvider": 76,
+  "ProcessProvider": 15,
+  "PtyProvider": 10,
+  "DatabaseProvider": 2,
+  "WorkerProvider": 3
+ },
+ "core": {
+  "chunk": "chunk_0261_212898705.js",
+  "vfs": "chunk-n21h4aaz.js",
+  "dependents": 411,
+  "direct_contacts": 0,
+  "boundary": 92,
+  "indirect": 319,
+  "covered": 411
+ },
+ "modules_with_contact": 114,
+ "modules_unchanged": 379,
+ "contract_lines": 1119,
+ "typecheck": {
+  "status": "OK",
+  "detail": "0 errores de tipo en los 11 ficheros"
+ }
+}

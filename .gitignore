@@ -10,3 +10,6 @@ motor/modules/tree/
 # Salidas de ejecucion
 motor/*/stdout.txt
 motor/*/*_stdout.txt
+
+# TypeScript local (herramienta de type-check del contrato, regenerable)
+.tscheck/
