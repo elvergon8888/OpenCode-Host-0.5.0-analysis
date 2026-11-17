@@ -1,0 +1,17 @@
+{
+ "hashes_checked": 496,
+ "hash_failures": [],
+ "coverage": {
+  "manifest": 493,
+  "with_module": 493,
+  "missing": [],
+  "absent": []
+ },
+ "content": {
+  "verified": 493,
+  "total": 493,
+  "mismatches": [],
+  "mismatch_count": 0
+ },
+ "result": "OK"
+}

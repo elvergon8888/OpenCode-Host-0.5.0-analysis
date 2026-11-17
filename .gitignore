@@ -1,5 +1,12 @@
 *.log
 .DS_Store
-bundle/corpus.js
+# Derivados pesados regenerables por motor/tools/reextract_chunks.py
 bundle/chunks/
+bundle/corpus.js
 bundle/*.js
+bundle/str_offsets.txt
+# Copias del arbol: regenerables por motor/tools/emit_tree_fast.py
+motor/modules/tree/
+# Salidas de ejecucion
+motor/*/stdout.txt
+motor/*/*_stdout.txt
