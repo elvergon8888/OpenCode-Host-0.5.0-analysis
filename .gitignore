@@ -1,2 +1,5 @@
 *.log
 .DS_Store
+bundle/corpus.js
+bundle/chunks/
+bundle/*.js
