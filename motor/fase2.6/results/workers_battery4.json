@@ -1,0 +1,115 @@
+{
+  "bun": "1.4.0",
+  "platform": "android",
+  "arch": "arm64",
+  "results": [
+    {
+      "id": "D1",
+      "title": "BroadcastChannel: dos instancias en el MISMO hilo principal",
+      "status": "PASS",
+      "evidence": {
+        "recibidoEnOtraInstancia": "d1-payload",
+        "nota": "Si falla aqui, BroadcastChannel no esta implementado en Bun"
+      }
+    },
+    {
+      "id": "D1b",
+      "title": "BroadcastChannel: el emisor NO recibe su propio mensaje (spec)",
+      "status": "PASS",
+      "evidence": {
+        "recibidoPorElEmisor": null,
+        "nota": "La spec de Node/Web exige que el emisor no reciba su propio mensaje"
+      }
+    },
+    {
+      "id": "D2",
+      "title": "BroadcastChannel: principal -> worker (con ACK de listo)",
+      "status": "PASS",
+      "evidence": {
+        "bc": "d2-payload"
+      }
+    },
+    {
+      "id": "D3",
+      "title": "MessagePort transferido principal->worker con ACK de listo",
+      "status": "PASS",
+      "evidence": {
+        "recibidoEnPrincipal": "w->main"
+      }
+    },
+    {
+      "id": "D4",
+      "title": "MessagePort enviado SIN transferList (semantica Node)",
+      "status": "PARTIAL",
+      "evidence": {
+        "error": {
+          "message": "Object that needs transfer was found in message but not listed in transferList",
+          "name": "DataCloneError",
+          "code": 25
+        },
+        "interpretacion": "Bun RECHAZA clonar un MessagePort no transferido. En Node.js el mismo uso lanza DataCloneError ('MessagePort objects cannot be cloned'), por lo que es semantica equivalente, NO una limitacion de Bun.",
+        "comparacionNode": "pendiente: ejecutar el mismo caso con node v26 (ver workers_node_oracle.mjs)"
+      }
+    },
+    {
+      "id": "D5.markAsUntransferable",
+      "title": "API exportada: markAsUntransferable",
+      "status": "PASS",
+      "evidence": {
+        "valor": "undefined"
+      }
+    },
+    {
+      "id": "D5.isMarkedAsUntransferable",
+      "title": "API exportada: isMarkedAsUntransferable",
+      "status": "PASS",
+      "evidence": {
+        "valor": "false"
+      }
+    },
+    {
+      "id": "D5.postMessageToThread",
+      "title": "API exportada: postMessageToThread",
+      "status": "PASS",
+      "evidence": {
+        "valor": "{}"
+      }
+    },
+    {
+      "id": "D5.receiveMessageOnPort",
+      "title": "API exportada: receiveMessageOnPort",
+      "status": "PASS",
+      "evidence": {
+        "valor": "undefined"
+      }
+    },
+    {
+      "id": "D5.isInternalThread",
+      "title": "API exportada: isInternalThread",
+      "status": "FAIL",
+      "evidence": {
+        "error": "wt.isInternalThread is not a function. (In 'wt.isInternalThread(0)', 'wt.isInternalThread' is false)",
+        "nombre": "TypeError",
+        "interpretacion": "error inesperado"
+      }
+    },
+    {
+      "id": "D5.threadName",
+      "title": "API exportada: threadName",
+      "status": "PASS",
+      "evidence": {
+        "valor": ""
+      }
+    },
+    {
+      "id": "D6",
+      "title": "SHARE_ENV: get/setEnvironmentData + env heredada",
+      "status": "PASS",
+      "evidence": {
+        "dato": "valor",
+        "compartido": "undef",
+        "envHeredada": null
+      }
+    }
+  ]
+}

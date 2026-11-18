@@ -1,0 +1,15 @@
+{
+  "url": "ws://127.0.0.1:4096/api/pty/pty_1ec65d194001CthwJnejfVBEkl/connect?ticket=e1ab4108-4241-4c6e-823b-20ec36023c56",
+  "events": [
+    {
+      "t": "open"
+    },
+    {
+      "t": "close",
+      "code": 4404,
+      "reason": "session exited"
+    }
+  ],
+  "frames": [],
+  "framesText": ""
+}

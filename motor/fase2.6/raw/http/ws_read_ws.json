@@ -1,0 +1,7 @@
+{
+  "url": "ws://127.0.0.1:4096/api/pty/pty_1ec4dbe70001tXmcsOv5TS5ASf/connect",
+  "httpStatus": 400,
+  "httpBody": "Missing or invalid Sec-WebSocket-Key header",
+  "frames": [],
+  "close": null
+}

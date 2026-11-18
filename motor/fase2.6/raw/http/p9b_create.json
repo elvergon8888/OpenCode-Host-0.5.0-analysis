@@ -1,0 +1,1 @@
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec6d7914001GO18E4tLZZH8G4","title":"f26-P9-kill2","command":"sh","args":["-c","echo P9_READY; sleep 300","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":8344}}

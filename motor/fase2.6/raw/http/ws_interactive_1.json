@@ -1,0 +1,34 @@
+{
+  "url": "ws://127.0.0.1:4096/api/pty/pty_1ec5b6f0e001S4y4RlsjPDsBYH/connect",
+  "events": [
+    {
+      "t": "open"
+    },
+    {
+      "t": "sent",
+      "type": "text",
+      "data": "echo MARKER_STDOUT\n"
+    }
+  ],
+  "frames": [
+    {
+      "type": "text",
+      "data": ":/data/data/app.opencodehost/files/home/work $ ",
+      "hex": "3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b202420",
+      "bytes": 47
+    },
+    {
+      "type": "binary",
+      "data": "\u0000{\"cursor\":47}",
+      "hex": "007b22637572736f72223a34377d",
+      "bytes": 14
+    },
+    {
+      "type": "text",
+      "data": "echo MARKER_STDOUT\r\r\nMARKER_STDOUT\r\n:/data/data/app.opencodehost/files/home/work $ ",
+      "hex": "6563686f204d41524b45525f5354444f55540d0d0a4d41524b45525f5354444f55540d0a3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b202420",
+      "bytes": 83
+    }
+  ],
+  "framesText": ":/data/data/app.opencodehost/files/home/work $ \u0000{\"cursor\":47}echo MARKER_STDOUT\r\r\nMARKER_STDOUT\r\n:/data/data/app.opencodehost/files/home/work $ "
+}

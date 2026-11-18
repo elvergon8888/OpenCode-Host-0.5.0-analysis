@@ -1,0 +1,23 @@
+{
+  "url": "ws://127.0.0.1:4096/api/pty/pty_1ec6637ed001dutnQUyrkc4QIo/connect?ticket=22b70861-4e56-4975-94b3-8141888188ac",
+  "events": [
+    {
+      "t": "open"
+    }
+  ],
+  "frames": [
+    {
+      "type": "text",
+      "data": "WILL_BE_KILLED\r\n",
+      "hex": "57494c4c5f42455f4b494c4c45440d0a",
+      "bytes": 16
+    },
+    {
+      "type": "binary",
+      "data": "\u0000{\"cursor\":16}",
+      "hex": "007b22637572736f72223a31367d",
+      "bytes": 14
+    }
+  ],
+  "framesText": "WILL_BE_KILLED\r\n\u0000{\"cursor\":16}"
+}

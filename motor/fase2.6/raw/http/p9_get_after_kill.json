@@ -1,0 +1,1 @@
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec728aab001ZaTtIrBWX6umwM","title":"f26-P9b-kill","command":"sh","args":["-c","echo P9_READY_MARKER; sleep 3600","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":9154,"exitCode":1}}

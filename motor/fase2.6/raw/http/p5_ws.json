@@ -1,0 +1,35 @@
+{
+  "url": "ws://127.0.0.1:4096/api/pty/pty_1ec65df7f001ZFDnRjbvX1ndLd/connect?ticket=4e60ea36-ba23-4a23-b6e5-48ba04243f25",
+  "events": [
+    {
+      "t": "open"
+    },
+    {
+      "t": "sent",
+      "op": 1,
+      "d": "echo P5_STDOUT_MARKER; echo P5_STDERR_MARKER 1>&2\n",
+      "bytes": 50
+    }
+  ],
+  "frames": [
+    {
+      "type": "text",
+      "data": ":/data/data/app.opencodehost/files/home/work $ echo P3_INTERACTIVE_MARKER\r\r\nP3_INTERACTIVE_MARKER\r\n:/data/data/app.opencodehost/files/home/work $ ",
+      "hex": "3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b2024206563686f2050335f494e5445524143544956455f4d41524b45520d0d0a50335f494e5445524143544956455f4d41524b45520d0a3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b202420",
+      "bytes": 146
+    },
+    {
+      "type": "binary",
+      "data": "\u0000{\"cursor\":146}",
+      "hex": "007b22637572736f72223a3134367d",
+      "bytes": 15
+    },
+    {
+      "type": "text",
+      "data": "echo P5_STDOUT_MARKER; echo P5_\rcho P5_STDOUT_MARKER; echo P5_                                                <\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bSTDERR_MARKER 1>&2\r\r\nP5_STDOUT_MARKER\r\nP5_STDERR_MARKER\r\n:/data/data/app.opencodehost/files/home/work $ ",
+      "hex": "6563686f2050355f5354444f55545f4d41524b45523b206563686f2050355f0d63686f2050355f5354444f55545f4d41524b45523b206563686f2050355f2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020203c080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808085354444552525f4d41524b455220313e26320d0d0a50355f5354444f55545f4d41524b45520d0a50",
+      "bytes": 264
+    }
+  ],
+  "framesText": ":/data/data/app.opencodehost/files/home/work $ echo P3_INTERACTIVE_MARKER\r\r\nP3_INTERACTIVE_MARKER\r\n:/data/data/app.opencodehost/files/home/work $ \u0000{\"cursor\":146}echo P5_STDOUT_MARKER; echo P5_\rcho P5_STDOUT_MARKER; echo P5_                                                <\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bSTDERR_MARKER 1>&2\r\r\nP5_STDOUT_MARKER\r\nP5_STDERR_MARKER\r\n:/data/data/app.opencodehost/files/home/work $ "
+}

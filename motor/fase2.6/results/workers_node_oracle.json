@@ -1,0 +1,69 @@
+{
+  "node": "v26.13.1",
+  "results": [
+    {
+      "id": "N1",
+      "title": "MessagePort enviado SIN transferList",
+      "status": "PASS",
+      "evidence": {
+        "error": {
+          "message": "Object that needs transfer was found in message but not listed in transferList",
+          "name": "DataCloneError",
+          "code": 25
+        },
+        "interpretacion": "Node RECHAZA clonar un MessagePort no transferido: mismo comportamiento que Bun (equivalente, no limitacion)"
+      }
+    },
+    {
+      "id": "N2",
+      "title": "BroadcastChannel principal->worker (con ACK)",
+      "status": "PASS",
+      "evidence": {
+        "bc": "payload"
+      }
+    },
+    {
+      "id": "N3",
+      "title": "BroadcastChannel dos instancias en el mismo hilo",
+      "status": "PASS",
+      "evidence": {
+        "recibido": "x"
+      }
+    },
+    {
+      "id": "N4",
+      "title": "moveMessagePortToContext",
+      "status": "PARTIAL",
+      "evidence": {
+        "error": "Invalid context argument",
+        "code": "ERR_INVALID_ARG_TYPE",
+        "interpretacion": "API exclusiva de Node (contexto vm); Bun la declara pero no la implementa"
+      }
+    },
+    {
+      "id": "N5",
+      "title": "env: SHARE_ENV + get/setEnvironmentData",
+      "status": "PASS",
+      "evidence": {
+        "d": "v"
+      }
+    },
+    {
+      "id": "N6",
+      "title": "isInternalThread: forma de la API",
+      "status": "FAIL",
+      "evidence": {
+        "tipoEnNode": "boolean",
+        "nota": "Bun exporta isInternalThread como boolean: divergencia de firma frente a Node"
+      }
+    },
+    {
+      "id": "N7",
+      "title": "BroadcastChannel: el emisor NO recibe su propio mensaje",
+      "status": "PASS",
+      "evidence": {
+        "recibidoPorElEmisor": null
+      }
+    }
+  ]
+}

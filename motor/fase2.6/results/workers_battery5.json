@@ -1,0 +1,66 @@
+{
+  "bun": "1.4.0",
+  "platform": "android",
+  "arch": "arm64",
+  "results": [
+    {
+      "id": "E1",
+      "title": "postMessageToThread: uso legitimo desde un worker al hilo principal",
+      "status": "PASS",
+      "evidence": {
+        "mensajes": [
+          {
+            "ready": true
+          },
+          {
+            "sent": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "E1b",
+      "title": "postMessageToThread al propio hilo (debe ser error)",
+      "status": "FAIL",
+      "evidence": {
+        "error": null,
+        "nota": "comportamiento distinto"
+      }
+    },
+    {
+      "id": "E2",
+      "title": "receiveMessageOnPort",
+      "status": "FAIL",
+      "evidence": {
+        "error": "TIMEOUT_e2"
+      }
+    },
+    {
+      "id": "E3",
+      "title": "isInternalThread: forma de la API exportada",
+      "status": "PARTIAL",
+      "evidence": {
+        "tipoEnBun": "boolean",
+        "valor": "false",
+        "enNode": "function",
+        "interpretacion": "Bun exporta isInternalThread como BOOLEAN (valor), no como funcion: divergencia de API frente a Node"
+      }
+    },
+    {
+      "id": "E4",
+      "title": "MessagePort transferido bidireccional (con ACK)",
+      "status": "FAIL",
+      "evidence": {
+        "error": "TIMEOUT_e4echo"
+      }
+    },
+    {
+      "id": "E5",
+      "title": "BroadcastChannel: receptor en worker A, emisor en principal",
+      "status": "PASS",
+      "evidence": {
+        "bc": "e5-desde-principal"
+      }
+    }
+  ]
+}

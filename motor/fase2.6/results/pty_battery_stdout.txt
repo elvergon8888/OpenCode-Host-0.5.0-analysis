@@ -1,0 +1,122 @@
+=== FASE 2.6 :: BATERIA PTY (servidor vivo del APK) ===
+UTC 2026-11-18T02:04:18Z
+
+########## P1: ruta FFI (/api/pty -> chunk-xq2yeq74.js -> bun:ffi) ##########
+P1_CREATE_HTTP=200
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec65d194001CthwJnejfVBEkl","title":"f26-P1-ffi","command":"sh","args":["-c","echo FFI_MARKER; ps -o pid,ppid,comm 2>/dev/null | head -5","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7333}}
+P1_ID=pty_1ec65d194001CthwJnejfVBEkl P1_PID=7333
+P1_TICKET=e1ab4108-4241-4c6e-823b-20ec36023c56
+=== EVENTOS ===
+  {"t":"open"}
+  {"t":"close","code":4404,"reason":"session exited"}
+=== FRAMES (0) ===
+--- estado final P1 ---
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec65d194001CthwJnejfVBEkl","title":"f26-P1-ffi","command":"sh","args":["-c","echo FFI_MARKER; ps -o pid,ppid,comm 2>/dev/null | head -5","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7333,"exitCode":0}}
+
+########## P2: ruta helper/daemon (OPENCODE_PTY_BIN) ##########
+env OPENCODE_PTY_BIN del servidor:
+motor/fase2.6/probes/pty_battery.sh: line 45: /proc/24587/environ: No such file or directory
+  (no legible desde este UID)
+binario helper presente en el APK:
+-rwxr-xr-x. 1 system system 2989352 Nov 12 19:40 /data/app/app.opencodehost-d0YKWvhGAUJws_Q6Sr_80A==/lib/arm64/libopencode-pty.so
+-- daemon helper: protocolo service.json + ping/pong (chunk-4z9vkptb.js) --
+usage: opencode-pty [play|status|list|watch ID|stop|daemon] --name NAME [--runtime-dir DIR]
+       opencode-pty --version
+  NAME selects DIR/NAME; DIR defaults to ${XDG_STATE_HOME:-~/.local/state}/opencode/pty
+P2: el daemon helper 'opencode-pty' es el backend de experimental/persistentPty (ver P10)
+
+########## P3: sesion interactiva (sh -i) ##########
+P3_CREATE_HTTP=200
+P3_ID=pty_1ec65df7f001ZFDnRjbvX1ndLd
+=== EVENTOS ===
+  {"t":"open"}
+  {"t":"sent","op":1,"d":"echo P3_INTERACTIVE_MARKER\n","bytes":27}
+=== FRAMES (3) ===
+  [text] bytes=47 hex=3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b202420 :: ":/data/data/app.opencodehost/files/home/work $ "
+  [binary] bytes=14 hex=007b22637572736f72223a34377d :: "\u0000{\"cursor\":47}"
+  [text] bytes=99 hex=6563686f2050335f494e5445524143544956455f4d41524b45520d0d0a50335f494e5445524143544956455f4d41524b45520d0a3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b202420 :: "echo P3_INTERACTIVE_MARKER\r\r\nP3_INTERACTIVE_MARKER\r\n:/data/data/app.opencodehost/files/home/work $ "
+
+########## P4: ejecutar comandos (multiples, encadenados) ##########
+P4_CREATE_HTTP=200
+=== EVENTOS ===
+  {"t":"open"}
+  {"t":"close","code":4404,"reason":"session exited"}
+=== FRAMES (0) ===
+--- estado P4 (exitCode esperado 0) ---
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec65ee9a001n8DkXZ00WqzeKs","title":"f26-P4-commands","command":"sh","args":["-c","echo CMD1; echo CMD2; pwd; uname -m; echo EXIT_CODE_IS_0","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7426,"exitCode":0}}
+
+########## P5: stdin/stdout/stderr ##########
+stdout+stderr por el mismo descriptor PTY (semantica de PTY):
+=== EVENTOS ===
+  {"t":"open"}
+  {"t":"sent","op":1,"d":"echo P5_STDOUT_MARKER; echo P5_STDERR_MARKER 1>&2\n","bytes":50}
+=== FRAMES (3) ===
+  [text] bytes=146 hex=3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b2024206563686f2050335f494e5445524143544956455f4d41524b45520d0d0a50335f494e5445524143544956455f4d41524b45520d0a3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b202420 :: ":/data/data/app.opencodehost/files/home/work $ echo P3_INTERACTIVE_MARKER\r\r\nP3_INTERACTIVE_MARKER\r\n:/data/data/app.opencodehost/files/home/work $ "
+  [binary] bytes=15 hex=007b22637572736f72223a3134367d :: "\u0000{\"cursor\":146}"
+  [text] bytes=264 hex=6563686f2050355f5354444f55545f4d41524b45523b206563686f2050355f0d63686f2050355f5354444f55545f4d41524b45523b206563686f2050355f2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020203c080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808085354444552525f4d41524b455220313e26320d0d0a50355f5354444f55545f4d41524b45520d0a50 :: "echo P5_STDOUT_MARKER; echo P5_\rcho P5_STDOUT_MARKER; echo P5_                                                <\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bSTDERR_MARKER 1>&2\r\r\nP5_STDOUT_MARKER\r\nP5_STDERR_MARKER\r\n:/data/data/app.opencodehost/files/home/work $ "
+--- contraste: /api/shell (no interactivo, stdout/stderr combinados a fichero) ---
+P5_SHELL_HTTP=200
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"sh_1ec660eb30018JOn8NakFCUnd8","status":"running","command":"echo P5_SHELL_STDOUT; echo P5_SHELL_STDERR 1>&2; exit 3","cwd":"/data/data/app.opencodehost/files/home/work","shell":"/system/bin/sh","file":"/data/user/0/app.opencodehost/files/home/.local/share/opencode/shell/global/sh_1ec660eb30018JOn8NakFCUnd8.out","pid":7524,"metadata":{},"time":{"started":1794967473843}}}
+--- shell output ---
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"output":"P5_SHELL_STDOUT\nP5_SHELL_STDERR\n","cursor":32,"size":32,"truncated":false}}
+
+########## P6: senales y terminacion (kill del proceso hijo) ##########
+P6_CREATE_HTTP=200
+P6_ID=pty_1ec661781001n7Llop2YGdJD80 P6_PID=7556
+-- enviar SIGTERM al PID de la PTY --
+motor/fase2.6/probes/pty_battery.sh: line 103: kill: (7556) - Operation not permitted
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec661781001n7Llop2YGdJD80","title":"f26-P6-signal","command":"sh","args":["-c","trap 'echo GOT_SIGTERM; exit 42' TERM; echo READY_FOR_SIGNAL; while true; do sleep 1; done","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7556}}
+-- P6b: DELETE /api/pty/{id} (terminar+eliminar) --
+P6_DELETE_HTTP=204
+-- P6c: GET tras delete (debe ser 404) --
+{"_tag":"PtyNotFoundError","ptyID":"pty_1ec661781001n7Llop2YGdJD80","message":"PTY session not found: pty_1ec661781001n7Llop2YGdJD80"}
+P6_GET_AFTER_DELETE_HTTP=404
+
+########## P7: cierre de sesion ##########
+P7_CREATE_HTTP=200
+P7_ID=pty_1ec6624dd0013rZH8ry6lt2fcN
+-- DELETE (cierre) --
+P7_DELETE_HTTP=204
+-- listar tras cierre --
+  PTYs restantes: ['pty_1ec480d8e001IzVQB4MMAy8RqV', 'pty_1ec4dbe70001tXmcsOv5TS5ASf', 'pty_1ec5b6f0e001S4y4RlsjPDsBYH', 'pty_1ec63d3e9001IMBANUnrj6a0SN', 'pty_1ec63d5fa001KKxs4qIdOHuEQG', 'pty_1ec63f25b0016LNnSVKGcQD33d', 'pty_1ec65a018001eWFxHdTgD18HR6', 'pty_1ec65ae13001dyGQYNGb30m2If', 'pty_1ec65bd61001s3NMbxZhkiXFAh', 'pty_1ec65d194001CthwJnejfVBEkl', 'pty_1ec65df7f001ZFDnRjbvX1ndLd', 'pty_1ec65ee9a001n8DkXZ00WqzeKs', 'pty_1ec65fdb3001hSf3WUzY9gQeB4', 'pty_1ec65fe12001hiYgb2UhJFsQx9', 'pty_1ec660698001Y47uv2OtQSzGaG']
+-- P7b: PUT /api/pty/{id} (update title + viewport size) --
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec65df7f001ZFDnRjbvX1ndLd","title":"f26-P3-renamed","command":"sh","args":["-i","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7383}}
+P7B_PUT_HTTP=200
+
+########## P8: deteccion de errores ##########
+-- P8a: comando inexistente --
+P8A_CREATE_HTTP=500
+
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":[{"id":"pty_1ec480d8e001IzVQB4MMAy8RqV","title":"f26-ffi","command":"sh","args":["-c","echo FFI_ROUTE_MARKER; id; echo stderr_probe 1>&2","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":2831,"exitCode":0},{"id":"pty_1ec4dbe70001tXmcsOv5TS5ASf","title":"f26-ws","command":"sh","args":["-c","echo READY_MARKER; sleep 30","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":3696,"exitCode":0},{"id":"pty_1ec5b6f0e001S4y4RlsjPDsBYH","title":"f26-interactive","command":"sh","args":["-i","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":4988},{"id":"pty_1ec63d3e9001IMBANUnrj6a0SN","title":"f26-p1-ffi","command":"sh","args":["-c","echo FFI_MARKER; sleep 20","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":6732,"exitCode":0},{"id":"pty_1ec63d5fa001KKxs4qIdOHuEQG","title":"f26-p3-interactive","command":"sh","args":["-i","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":6752},{"id":"pty_1ec63f25b0016LNnSVKGcQD33d","title":"f26-p8b-exit42","command":"sh","args":["-c","exit 42","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":6830,"exitCode":42},{"id":"pty_1ec65a018001eWFxHdTgD18HR6","title":"f26-P1-ffi","command":"sh","args":["-c","echo FFI_MARKER; ps -o pid,ppid,comm 2>/dev/null | head -5","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7081,"exitCode":0},{"id":"pty_1ec65ae13001dyGQYNGb30m2If","title":"f26-P3-renamed","command":"sh","args":["-i","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7151},{"id":"pty_1ec65bd61001s3NMbxZhkiXFAh","title":"f26-P4-commands","command":"sh","args":["-c","echo CMD1; echo CMD2; pwd; uname -m; echo EXIT_CODE_IS_0","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7209,"exitCode":0},{"id":"pty_1ec65d194001CthwJnejfVBEkl","title":"f26-P1-ffi","command":"sh","args":["-c","echo FFI_MARKER; ps -o pid,ppid,comm 2>/dev/null | head -5","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7333,"exitCode":0},{"id":"pty_1ec65df7f001ZFDnRjbvX1ndLd","title":"f26-P3-renamed","command":"sh","args":["-i","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7383},{"id":"pty_1ec65ee9a001n8DkXZ00WqzeKs","title":"f26-P4-commands","command":"sh","args":["-c","echo CMD1; echo CMD2; pwd; uname -m; echo EXIT_CODE_IS_0","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7426,"exitCode":0},{"id":"pty_1ec65fdb3001hSf3WUzY9gQeB4","title":"Terminal QeB4","command":"/system/bin/sh","args":["-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7476},{"id":"pty_1ec65fe12001hiYgb2UhJFsQx9","title":"f26-P8d","command":"sh","args":["-c","exit 7","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7481,"exitCode":7},{"id":"pty_1ec660698001Y47uv2OtQSzGaG","title":"f26-P9-kill","command":"sh","args":["-c","echo WILL_BE_KILLED; sleep 120","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7510}]}
+-- P8b: PTY inexistente --
+{"_tag":"PtyNotFoundError","ptyID":"pty_doesnotexist","message":"PTY session not found: pty_doesnotexist"}
+P8B_HTTP=404
+-- P8c: body invalido (command ausente) --
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec662eef001bfeHW7ManxEpSC","title":"Terminal EpSC","command":"/system/bin/sh","args":["-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7608}}
+P8C_HTTP=200
+-- P8d: comando que falla con exit != 0 --
+P8D_CREATE_HTTP=200
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec662f3f001Ud0CsRp0G7s8G4","title":"f26-P8d","command":"sh","args":["-c","exit 7","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7614,"exitCode":7}}
+
+########## P9: proceso terminado inesperadamente (SIGKILL externo) ##########
+P9_CREATE_HTTP=200
+P9_ID=pty_1ec6637ed001dutnQUyrkc4QIo P9_PID=7624
+-- SIGKILL desde el sandbox de la app (mismo UID que el servidor) --
+kill: unknown pid '7624'
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec6637ed001dutnQUyrkc4QIo","title":"f26-P9-kill","command":"sh","args":["-c","echo WILL_BE_KILLED; sleep 120","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7624}}
+-- WS a la PTY muerta (debe cerrar con 4404 'session exited') --
+=== EVENTOS ===
+  {"t":"open"}
+=== FRAMES (2) ===
+  [text] bytes=16 hex=57494c4c5f42455f4b494c4c45440d0a :: "WILL_BE_KILLED\r\n"
+  [binary] bytes=14 hex=007b22637572736f72223a31367d :: "\u0000{\"cursor\":16}"
+
+########## P10: ruta helper via experimental/persistent-pty ##########
+-- capabilities de /api/info --
+{"version":"2.2.5","pid":24587,"hostname":"localhost","urls":["http://127.0.0.1:4096"],"paths":{"tmp":"/data/data/app.opencodehost/files/tmp/opencode"},"capabilities":{"persistentPty":true}}
+-- listar persistent ptys de una sesion (requiere sessionID) --
+{"handoff":null}
+P10_HANDOFF_HTTP=200
+
+=== FIN BATERIA PTY ===
+UTC 2026-11-18T02:04:49Z

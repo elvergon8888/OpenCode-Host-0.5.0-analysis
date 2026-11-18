@@ -1,0 +1,1 @@
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec65ee9a001n8DkXZ00WqzeKs","title":"f26-P4-commands","command":"sh","args":["-c","echo CMD1; echo CMD2; pwd; uname -m; echo EXIT_CODE_IS_0","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"exited","pid":7426,"exitCode":0}}

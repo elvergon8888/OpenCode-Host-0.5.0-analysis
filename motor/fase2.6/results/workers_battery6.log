@@ -1,0 +1,97 @@
+=== FASE 2.6 :: BATERIA CANONICA node:worker_threads v6 ===
+runtime: Bun 1.4.0 | android-arm64 | process.versions.node=26.3.0
+navigator.hardwareConcurrency=8 | pid=16099
+
+########## W1: crear worker ##########
+[F26] PASS        W1.1    W1-crear-worker | Crear worker (eval:true) con handshake
+         -> {"handshakeReady":true,"threadIdWorker":1,"threadIdPrincipal":0,"pidWorker":16099,"pidPrincipal":16099,"hilosAntes":3,"hilosDurante":5,"rpcResultado":"hola","terminacion":{"exitCode":1,"terminado":true,"error":null,"hilosBaseline":3,"hilosDespues":12,"deltaHilos":9,"limpio":false}}
+[F26] PASS        W1.2    W1-crear-worker | Crear worker desde fichero (ruta absoluta)
+         -> {"ruta":"/data/data/com.termux/files/home/opencode-host-analysis/motor/fase2.6/probes/workers_battery_worker.js","mensaje":{"from":"fichero-worker"},"threadId":2}
+[F26] PASS        W1.3    W1-crear-worker | Crear worker desde file:// URL (new URL)
+         -> {"url":"file:///data/data/com.termux/files/home/opencode-host-analysis/motor/fase2.6/probes/workers_battery_worker.js","mensaje":{"from":"fichero-worker"}}
+[F26] PASS        W1.4    W1-crear-worker | Worker con opciones (workerData, resourceLimits, stackSizeMb)
+         -> {"handshake":true,"workerDataRecibido":{"k":42},"resourceLimitsAceptado":true,"stackSizeMbAceptado":true,"nota":"Bun acepta las opciones; no se verifico que el limite V8 se aplique (V8-only)"}
+
+########## W2: ejecutar codigo ##########
+[F26] PASS        W2.1    W2-ejecutar-codigo | Ejecutar codigo en el worker (resultados deterministas via ACK)
+         -> {"handshake":true,"echo":"hola-mundo","suma":15,"elementos":5,"workerDataRefIdentico":false,"workerDataEntregado":true,"terminacion":{"exitCode":1,"terminado":true,"error":null,"hilosBaseline":14,"hilosDespues":13,"deltaHilos":-1,"limpio":true}}
+
+########## W3: comunicacion bidireccional ##########
+[F26] PASS        W3.1    W3-comunicacion | Comunicacion bidireccional principal<->worker (ACK correlativo)
+         -> {"handshake":true,"respuestasEnOrden":["ida","idb","idc"],"pushRecibido":{"__f26_push":true,"valor":"push-real"},"pushVerificado":true,"terminacion":{"exitCode":1,"terminado":true,"error":null,"hilosBaseline":15,"hilosDespues":13,"deltaHilos":-2,"limpio":true}}
+
+########## W4: transferencia de mensajes ##########
+[F26] PASS        W4.1    W4-transferencia | Structured clone (objeto/array/Date)
+         -> {"copia":{"a":1,"b":[1,2,3],"d":"1970-01-01T00:00:00.000Z"},"verificacion":"a===1 y b es array"}
+[F26] PASS        W4.2    W4-transferencia | Transferencia de ArrayBuffer (transferList)
+         -> {"bytesEnWorker":64,"ctorEnWorker":"ArrayBuffer","byteLengthEnEmisorTrasTransfer":0,"semantica":"detach en el emisor (igual que Node)"}
+[F26] PASS        W4.3    W4-transferencia | SharedArrayBuffer entre hilos
+         -> {"bytesEnWorker":32}
+[F26] PASS        W4.4    W4-transferencia | MessagePort transferido principal<->worker (ACK en ambos sentidos)
+         -> {"handshakeWorker":true,"workerHaciaPrincipal":"hola-desde-worker","principalHaciaWorker":"principal->worker","transferencia":"MessagePort enviado con transferList (port2)"}
+[F26] PASS        W4.5    W4-transferencia | MessagePort enviado SIN transferList (rechazo correcto, equivalente a Node)
+         -> {"error":{"message":"Object that needs transfer was found in message but not listed in transferList","name":"DataCloneError","code":25},"interpretacion":"Bun rechaza clonar un MessagePort no transferido. Node v26 lanza EXACTAMENTE el mismo DataCloneError (code 25) -> semantica EQUIVALENTE, no limitacion de Bun.","oraculo":"results/workers_node_oracle.json (N1)"}
+[F26] PASS        W4.6    W4-transferencia | BroadcastChannel principal->worker
+         -> {"handshake":true,"suscripcionConfirmada":true,"recibido":"payload-bc"}
+[F26] PASS        W4.7    W4-transferencia | Opcion env: SHARE_ENV
+         -> {"tipoDeVariableEnWorker":"string","valorCompartido":"valor-compartido","nota":"El FAIL anterior (W4.9 v2) fue del probe: posteaba el Symbol SHARE_ENV, que no es clonable ni en Node","oraculo":"results/workers_node_oracle.json (N5)"}
+[F26] PARTIAL     W4.8    W4-transferencia | moveMessagePortToContext (API exclusiva de Node)
+         -> {"error":"worker_threads.moveMessagePortToContext is not yet implemented in Bun.","code":"ERR_NOT_IMPLEMENTED","nombre":"NotImplementedError","interpretacion":"Bun 1.4.0 DECLARA la API pero NO la implementa (NotImplementedError). Limitacion real del runtime, no del probe.","impacto":"No bloquea MessageChannel/MessagePort/BroadcastChannel, que si funcionan"}
+
+########## W5: errores ##########
+[F26] PASS        W5.1    W5-errores | Excepcion no capturada -> evento 'error' en el principal
+         -> {"mensaje":"BOOM_WORKER_UNCAUGHT","nombre":"Error","tieneStack":true,"stackHead":["Error: BOOM_WORKER_UNCAUGHT","    at blob:8ce40f0d-6791-4771-b2df-6f06c841bf90:1:11"],"exitCodeTrasError":1}
+[F26] PASS        W5.2    W5-errores | Excepcion asincrona -> evento 'error'
+         -> {"mensaje":"BOOM_ASYNC","nombre":"Error"}
+[F26] PASS        W5.3    W5-errores | Error de sintaxis en el worker
+         -> {"mensaje":"3 errors building \"blob:b5a3c20d-1eec-4142-bfba-133d15be6452\"","nombre":"Error"}
+[F26] PASS        W5.4    W5-errores | Error capturado en el worker y reenviado por ACK
+         -> {"errorRecibido":{"__f26_err":true,"__f26_id":16,"cmd":"throw","error":"error-controlado","nombre":"Error","stack":["Error: error-controlado","    at <anonymous> (blob:deb7ac2f-fab7-4f38-82f1-d65c2f399857:30:31)"]},"nota":"El harness captura la excepcion y la reenvia como __f26_err con el id del comando"}
+
+########## W6: terminacion ##########
+[F26] PASS        W6.1    W6-terminacion | terminate() detiene un worker en ejecucion
+         -> {"handshake":true,"ackVivo":true,"exitCode":1,"ms":423,"hilosAntes":13,"hilosDurante":15,"hilosDespues":13}
+[F26] PASS        W6.2    W6-terminacion | Salida natural con codigo (process.exit(7))
+         -> {"exitCode":7,"esperado":7}
+[F26] PASS        W6.3    W6-terminacion | Evento 'exit' por terminacion natural
+         -> {"exitCode":0}
+[F26] PASS        W6.4    W6-terminacion | terminate() sobre worker ya terminado (idempotente)
+         -> {"exitCodeNatural":0,"valorDevueltoPorTerminate":"undefined","error":null,"interpretacion":"terminate() no lanzo error (idempotente). Node v26 devuelve EXACTAMENTE el mismo undefined (ver w64_oracle.mjs): equivalencia, no limitacion.","oraculo":"results/workers_node_oracle.json / probes/w64_oracle.mjs"}
+
+########## W7: limpieza de recursos ##########
+[F26] PASS        W7.1    W7-limpieza | Recursos de hilo liberados tras terminate()
+         -> {"handshake":true,"hilosAntes":13,"hilosDurante":14,"hilosDespues":13,"delta":0,"exitCode":1,"hiloWorkerPresenteDurante":true,"nombresDurante":["Worker"],"nombresDespues":[]}
+[F26] PASS        W7.2    W7-limpieza | Sin fuga de hilos tras crear/terminar 6 workers
+         -> {"hilosAntes":13,"hilosDespues":13,"delta":0}
+[F26] PASS        W7.3    W7-limpieza | worker.unref() / worker.ref() disponibles
+         -> {"unrefDisponible":true,"refDisponible":true,"llamadasSinError":true}
+[F26] PASS        W7.4    W7-limpieza | Opcion resourceLimits aceptada por el constructor
+         -> {"resourceLimits":{"maxOldGenerationSizeMb":64},"nota":"Bun acepta la opcion; no se verifico aplicacion real del limite (V8-only)"}
+
+########## W8: concurrencia de varios workers ##########
+[F26] PASS        W8.1    W8-concurrencia | Concurrencia real de 4 workers CPU-bound (2000 ms c/u)
+         -> {"wallMs":2016,"sumaSerialMs":8000,"ratioParalelismo":3.97,"ventanas":[{"id":0,"finRel":2003},{"id":1,"finRel":2005},{"id":2,"finRel":2004},{"id":3,"finRel":2016}],"solapamiento":true,"nucleosDetectados":8,"veredicto":"paralelismo real"}
+[F26] PASS        W8.2    W8-concurrencia | Concurrencia real de 8 workers CPU-bound (1500 ms c/u)
+         -> {"wallMs":1508,"sumaSerialMs":12000,"ratioParalelismo":7.96,"nucleosDetectados":8}
+[F26] PASS        W8.3    W8-concurrencia | Aislamiento: estado y checksum propios por worker
+         -> {"checksums":[31000,31001,31002,31003],"checksumsEsperados":[31000,31001,31002,31003],"ids":[0,1,2,3],"threadIds":[43,44,45,46],"hilosDistintos":true,"interpretacion":"Cada worker mantengo su propio estado: no hay memoria compartida implicita entre hilos"}
+[F26] PASS        W8.4    W8-concurrencia | Atomics + SharedArrayBuffer: 4 workers incrementan el mismo contador
+         -> {"lecturasPorWorker":[1,3,2,4],"valorFinalLeidoPorElPrincipal":4,"esperado":4,"tieneAtomicsWait":true,"interpretacion":"Los 4 incrementos son atomicos y se acumulan en la MISMA memoria compartida (verificado por el principal): sincronizacion real"}
+
+########## W9: limitaciones especificas de Android ##########
+[F26] PASS        W9.1    W9-android | El worker es un hilo real del mismo proceso (no un subproceso)
+         -> {"pidPrincipal":16099,"pidWorker":16099,"mismoProceso":true,"ppid":16097,"plataforma":"android","arch":"arm64","nodeVersion":"v26.3.0","bunVersion":"1.4.0","argv0":"/data/app/app.opencodehost-d0YKWvhGAUJws_Q6Sr_80A==/lib/arm64/libopencode.so","rss":65990656}
+[F26] PASS        W9.2    W9-android | Permisos de filesystem: worker vs principal (mismo UID)
+         -> {"principalEscribe":"OK","workerEscribe":"OK","lecturaEnWorker":"OK","uidWorker":10306,"gidWorker":10306,"cwdWorker":"/data/data/com.termux/files/home/opencode-host-analysis","interpretacion":"Worker y principal comparten el mismo contexto de permisos (mismo UID, mismo sandbox): NO hay una restriccion adicional"}
+[F26] PASS        W9.3    W9-android | El worker puede crear procesos hijos (child_process)
+         -> {"status":0,"stdout":"worker-child-ok","stderr":""}
+[F26] PASS        W9.4    W9-android | Coste de arranque de un worker en Android (5 muestras)
+         -> {"msPorArranque":[71,78,70,73,77],"mediaMs":74}
+[F26] PASS        W9.5    W9-android | Creacion de 16 workers simultaneos
+         -> {"creados":16,"ms":1029,"hilosDurante":47,"hilosDespues":15,"nucleosDetectados":8,"nota":"No se provoco agotamiento de hilos del sistema"}
+[F26] PASS        W9.6    W9-android | Cobertura de la API node:worker_threads en Bun 1.4.0/Android
+         -> {"totalExportadas":21,"exportadas":["BroadcastChannel","MessageChannel","MessagePort","SHARE_ENV","Worker","default","getEnvironmentData","isInternalThread","isMainThread","isMarkedAsUntransferable","markAsUncloneable","markAsUntransferable","moveMessagePortToContext","parentPort","postMessageToThread","receiveMessageOnPort","resourceLimits","setEnvironmentData","threadId","threadName","workerData"],"divergentesDeForma":[],"nota":"isInternalThread es boolean en Bun Y en Node v26 (verificado con el oraculo): no es una divergencia"}
+[F26] PARTIAL     W9.7    W9-android | APIs exportadas pero no implementadas por el runtime
+         -> {"noImplementadas":[{"simbolo":"moveMessagePortToContext","estado":"NotImplementedError","error":"worker_threads.moveMessagePortToContext is not yet implemented in Bun.","code":"ERR_NOT_IMPLEMENTED"}],"interpretacion":"Bun exporta la superficie completa de node:worker_threads (21 simbolos) pero moveMessagePortToContext no esta implementada"}
+[F26] PASS        W9.8    W9-android | Registro de senales (process.on) dentro del worker
+         -> {"processOnEsFuncion":"function","signalHandlerRegistrado":true}

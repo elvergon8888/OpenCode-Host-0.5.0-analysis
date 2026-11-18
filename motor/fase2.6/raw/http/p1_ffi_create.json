@@ -1,0 +1,1 @@
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec65d194001CthwJnejfVBEkl","title":"f26-P1-ffi","command":"sh","args":["-c","echo FFI_MARKER; ps -o pid,ppid,comm 2>/dev/null | head -5","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7333}}

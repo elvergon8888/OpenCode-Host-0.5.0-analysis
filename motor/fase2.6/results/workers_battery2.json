@@ -1,0 +1,137 @@
+{
+  "bun": "1.4.0",
+  "platform": "android",
+  "arch": "arm64",
+  "results": [
+    {
+      "id": "W1.2",
+      "title": "Crear worker desde fichero (ruta absoluta)",
+      "status": "PASS",
+      "evidence": {
+        "ruta": "/data/data/com.termux/files/home/opencode-host-analysis/motor/fase2.6/probes/workers_battery_worker.js",
+        "mensaje": {
+          "from": "fichero-worker"
+        }
+      }
+    },
+    {
+      "id": "W1.3",
+      "title": "Crear worker desde file:// URL (new URL)",
+      "status": "PASS",
+      "evidence": {
+        "url": "file:///data/data/com.termux/files/home/opencode-host-analysis/motor/fase2.6/probes/workers_battery_worker.js",
+        "mensaje": {
+          "from": "fichero-worker"
+        }
+      }
+    },
+    {
+      "id": "W4.4",
+      "title": "MessageChannel principal<->worker",
+      "status": "FAIL",
+      "evidence": {
+        "error": "Object that needs transfer was found in message but not listed in transferList"
+      }
+    },
+    {
+      "id": "W4.6",
+      "title": "MessagePort transferido con transferList",
+      "status": "FAIL",
+      "evidence": {
+        "error": "TIMEOUT_mct"
+      }
+    },
+    {
+      "id": "W4.5",
+      "title": "moveMessagePortToContext (API exclusiva de Node)",
+      "status": "PARTIAL",
+      "evidence": {
+        "error": "worker_threads.moveMessagePortToContext is not yet implemented in Bun.",
+        "code": "ERR_NOT_IMPLEMENTED",
+        "nombre": "NotImplementedError",
+        "interpretacion": "Bun 1.4.0 no implementa la API: lanza NotImplementedError (ERR_NOT_IMPLEMENTED)",
+        "impacto": "No bloquea el uso de MessageChannel/MessagePort en Bun"
+      }
+    },
+    {
+      "id": "W4.7",
+      "title": "BroadcastChannel entre principal y worker",
+      "status": "FAIL",
+      "evidence": {
+        "error": "TIMEOUT_bc"
+      }
+    },
+    {
+      "id": "W4.8",
+      "title": "workerData con estructuras complejas + env heredada",
+      "status": "PASS",
+      "evidence": {
+        "wd": {
+          "arr": [
+            1,
+            2,
+            3
+          ],
+          "obj": {
+            "k": "v"
+          },
+          "n": 42
+        },
+        "env": null
+      }
+    },
+    {
+      "id": "W4.9",
+      "title": "Opcion env: SHARE_ENV",
+      "status": "FAIL",
+      "evidence": {
+        "error": "TIMEOUT_share"
+      }
+    },
+    {
+      "id": "W5.5",
+      "title": "Excepcion asincrona en worker (setTimeout) -> evento 'error'",
+      "status": "PASS",
+      "evidence": {
+        "mensaje": "BOOM_ASYNC"
+      }
+    },
+    {
+      "id": "W6.4",
+      "title": "terminate() sobre worker ya terminado (idempotente)",
+      "status": "PASS",
+      "evidence": {}
+    },
+    {
+      "id": "W7.5",
+      "title": "Sin fuga de hilos tras crear/terminar 6 workers",
+      "status": "PASS",
+      "evidence": {
+        "hilosAntes": 16,
+        "hilosDespues": 16,
+        "delta": 0
+      }
+    },
+    {
+      "id": "W8.3",
+      "title": "Concurrencia de 8 workers CPU-bound (1500 ms c/u)",
+      "status": "PASS",
+      "evidence": {
+        "wallMs": 1648,
+        "sumaSerialMs": 12000,
+        "ratioParalelismo": 7.28,
+        "nucleosDetectados": 8,
+        "veredicto": "paralelismo real"
+      }
+    },
+    {
+      "id": "W9.9",
+      "title": "Permisos de filesystem dentro del worker (mismo UID que el principal)",
+      "status": "PASS",
+      "evidence": {
+        "write": "DENIED:EACCES",
+        "read": "OK"
+      }
+    }
+  ]
+}

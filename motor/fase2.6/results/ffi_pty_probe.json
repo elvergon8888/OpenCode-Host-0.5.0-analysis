@@ -1,0 +1,108 @@
+{
+  "resultados": [
+    {
+      "id": "F1",
+      "title": "Resolucion de la libreria compartida (BUN_PTY_LIB / rutas por defecto)",
+      "status": "PASS",
+      "evidence": {
+        "BUN_PTY_LIB_env": "<unset>",
+        "candidatosProbados": [
+          "/data/data/com.termux/files/home/opencode-host-analysis/motor/fase2.6/raw/librust_pty_arm64-2resfh96.so",
+          "/data/data/com.termux/files/home/opencode-host-analysis/rust-pty/target/release/librust_pty_arm64.so",
+          "/data/data/com.termux/files/home/opencode-host-analysis/rust-pty/target/release/librust_pty.so",
+          "/data/data/com.termux/files/home/opencode-host-analysis/../bun-pty/rust-pty/target/release/librust_pty_arm64.so",
+          "/data/data/com.termux/files/home/opencode-host-analysis/../bun-pty/rust-pty/target/release/librust_pty.so",
+          "/data/data/com.termux/files/home/opencode-host-analysis/node_modules/bun-pty/rust-pty/target/release/librust_pty_arm64.so",
+          "/data/data/com.termux/files/home/opencode-host-analysis/node_modules/bun-pty/rust-pty/target/release/librust_pty.so"
+        ],
+        "encontrada": "/data/data/com.termux/files/home/opencode-host-analysis/motor/fase2.6/raw/librust_pty_arm64-2resfh96.so",
+        "mensajeDelMotor": "librust_pty shared library not found.\nChecked:\n  - BUN_PTY_LIB=...\n  - <rutas>\n\nSet BUN_PTY_LIB or ensure one of these paths contains the file."
+      }
+    },
+    {
+      "id": "F2",
+      "title": "dlopen() de librust_pty + resolucion de los 8 simbolos",
+      "status": "PASS",
+      "evidence": {
+        "ruta": "/data/data/com.termux/files/home/opencode-host-analysis/motor/fase2.6/raw/librust_pty_arm64-2resfh96.so",
+        "simbolos": [
+          "bun_pty_spawn",
+          "bun_pty_write",
+          "bun_pty_read",
+          "bun_pty_resize",
+          "bun_pty_kill",
+          "bun_pty_get_pid",
+          "bun_pty_get_exit_code",
+          "bun_pty_close"
+        ]
+      }
+    },
+    {
+      "id": "F3",
+      "title": "bun_pty_spawn() crea un PTY real",
+      "status": "PASS",
+      "evidence": {
+        "handle": 1,
+        "cols": 80,
+        "rows": 24,
+        "comando": "sh -c 'echo FFI_FFI_MARKER; echo FFI_FFI_ERR 1>&2; cat > /dev/null'"
+      }
+    },
+    {
+      "id": "F4",
+      "title": "bun_pty_get_pid() devuelve el PID del hijo",
+      "status": "PASS",
+      "evidence": {
+        "pid": 9060
+      }
+    },
+    {
+      "id": "F5",
+      "title": "bun_pty_read() devuelve stdout+stderr del PTY",
+      "status": "PASS",
+      "evidence": {
+        "bytesRecibidos": 29,
+        "contieneStdout": true,
+        "contieneStderr": true,
+        "stdoutYStderrCompartenDescriptor": true,
+        "muestra": "FFI_FFI_MARKER\r\nFFI_FFI_ERR\r\n"
+      }
+    },
+    {
+      "id": "F7",
+      "title": "bun_pty_resize() cambia el viewport del PTY",
+      "status": "PASS",
+      "evidence": {
+        "cols": 120,
+        "rows": 40,
+        "retorno": 0
+      }
+    },
+    {
+      "id": "F6",
+      "title": "bun_pty_write() envia stdin al PTY y el hijo lo recibe",
+      "status": "PASS",
+      "evidence": {
+        "bytesEscritos": 0,
+        "ecoRecibido": true,
+        "muestra": "echo FFI_STDIN_MARKER"
+      }
+    },
+    {
+      "id": "F8",
+      "title": "bun_pty_get_exit_code() devuelve el codigo de salida",
+      "status": "PASS",
+      "evidence": {
+        "exitCode": -1
+      }
+    },
+    {
+      "id": "F9",
+      "title": "bun_pty_kill() + bun_pty_close() cierran el PTY",
+      "status": "PASS",
+      "evidence": {
+        "kill": 0
+      }
+    }
+  ]
+}

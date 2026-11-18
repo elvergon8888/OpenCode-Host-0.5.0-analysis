@@ -1,0 +1,113 @@
+{
+  "bun": "1.4.0",
+  "platform": "android",
+  "arch": "arm64",
+  "results": [
+    {
+      "id": "C1",
+      "title": "MessageChannel creado DENTRO del worker (autocontrol)",
+      "status": "PASS",
+      "evidence": {
+        "eco": "dentro-worker"
+      }
+    },
+    {
+      "id": "C2.1",
+      "title": "MessageChannel principal<->worker (sin-transferList)",
+      "status": "FAIL",
+      "evidence": {
+        "error": "Object that needs transfer was found in message but not listed in transferList"
+      }
+    },
+    {
+      "id": "C2.2",
+      "title": "MessageChannel principal<->worker (con-transferList)",
+      "status": "PASS",
+      "evidence": {
+        "recibidoEnPrincipal": "main->w",
+        "errorEnWorker": null
+      }
+    },
+    {
+      "id": "C3.1",
+      "title": "BroadcastChannel solo en el hilo principal (control)",
+      "status": "FAIL",
+      "evidence": {
+        "recibido": null
+      }
+    },
+    {
+      "id": "C3.2",
+      "title": "BroadcastChannel entre principal y worker",
+      "status": "FAIL",
+      "evidence": {
+        "error": "TIMEOUT_c3b"
+      }
+    },
+    {
+      "id": "C4.1",
+      "title": "Opcion env: SHARE_ENV (constructor)",
+      "status": "PASS",
+      "evidence": {
+        "ok": 1
+      }
+    },
+    {
+      "id": "C4.2",
+      "title": "get/setEnvironmentData + SHARE_ENV",
+      "status": "PASS",
+      "evidence": {
+        "v": "v"
+      }
+    },
+    {
+      "id": "C5.1",
+      "title": "Escritura en el sandbox: principal vs worker",
+      "status": "PARTIAL",
+      "evidence": {
+        "principalEscribe": "DENIED:EACCES",
+        "workerEscribe": "DENIED:EACCES",
+        "lecturaEnWorker": "OK",
+        "cwdWorker": "/data/data/com.termux/files/home/opencode-host-analysis",
+        "uidWorker": 10306,
+        "gidWorker": 10306,
+        "interpretacion": "Mismos permisos en worker y principal."
+      }
+    },
+    {
+      "id": "C6.1",
+      "title": "El worker puede ejecutar procesos del sistema",
+      "status": "PASS",
+      "evidence": {
+        "status": 0,
+        "out": "worker-child-ok",
+        "err": ""
+      }
+    },
+    {
+      "id": "C7.1",
+      "title": "Coste de arranque de worker (5 muestras, Android)",
+      "status": "PASS",
+      "evidence": {
+        "msPorArranque": [
+          62,
+          62,
+          61,
+          41,
+          31
+        ],
+        "mediaMs": 51
+      }
+    },
+    {
+      "id": "C8.1",
+      "title": "Creacion de 16 workers simultaneos",
+      "status": "PASS",
+      "evidence": {
+        "creados": 16,
+        "ms": 288,
+        "nucleos": 8
+      }
+    }
+  ]
+}

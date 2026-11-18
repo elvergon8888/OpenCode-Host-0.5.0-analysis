@@ -1,0 +1,1 @@
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec4dbe70001tXmcsOv5TS5ASf","title":"f26-ws","command":"sh","args":["-c","echo READY_MARKER; sleep 30","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":3696}}

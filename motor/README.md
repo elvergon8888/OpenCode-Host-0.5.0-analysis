@@ -6,6 +6,8 @@ Reconstruccion navegable, verificable y fiel del motor de OpenCode embebido en
 - **Fase 1** — extraccion, grafo, simbolos, arbol navegable. COMPLETADA.
 - **Fase 2 (opcion a)** — auditoria de las 34 APIs de plataforma + diseño del contrato
   `PlatformProvider`. COMPLETADA (diseño y documentacion; **sin modificar el motor**).
+- **Fase 2.6** — validacion EXPERIMENTAL de las capacidades no medidas: PTY y
+  `node:worker_threads`. COMPLETADA (sobre el APK original; **sin modificar el motor**).
 
 > **Fase 3 NO iniciada.** Requiere autorizacion expresa.
 >
@@ -59,6 +61,11 @@ motor/
 │   ├── platform_dependencies.md
 │   ├── symbols_recovered.md
 │   └── not_reconstructed.md
+├── fase2.6/                    # FASE 2.6 — validacion experimental PTY + workers
+│   ├── informe-fase2.6.md      # informe maestro (metodo, evidencia, limitaciones)
+│   ├── probes/                 # instrumentacion reproducible (baterias + oraculos)
+│   ├── raw/                    # entradas brutas: .so extraida en lectura, HTTP/WS
+│   └── results/                # resultados de las baterías (JSON + logs)
 ├── platform/                   # FASE 2 (opcion a) — diseño del PlatformProvider
 │   ├── Platform.ts              # contrato agregado (9 providers + capacidades)
 │   ├── tsconfig.json            # config del type-check (strict, noEmit)
@@ -111,6 +118,24 @@ motor/
 | Dependencias no sustituibles directamente | **7** (documentadas, con ruta real) |
 | Gaps medidos abiertos en Android | **2 criticos** (ripgrep `arm64-android`; watcher recursivo) |
 
+## Resultados — Fase 2.6 (validacion experimental PTY + workers)
+
+| Metrica | Valor |
+|---|---|
+| Pruebas PTY | **8 PASS / 1 FAIL / 0 PARTIAL** (9 casos) |
+| Probe FFI aislado (`bun_pty_*`) | **9 / 9 PASS** |
+| Casos `node:worker_threads` | **36 PASS / 0 FAIL / 2 PARTIAL** (38 casos) |
+| Paralelismo real medido | ratio **3.99** (4 workers) y **7.92** (8 workers) |
+| Fugas de hilos | **0** (delta 0 tras 6 y tras 16 workers) |
+| Limitaciones del runtime confirmadas | **2** (`moveMessagePortToContext` no implementada; daemon helper de PTY roto en Android) |
+| Oraculo diferencial | Node v26.13.1 (para separar limitacion de artefacto de probe) |
+
+**Veredicto:** PTY **FUNCIONAL** por la ruta FFI (`/api/pty`); la ruta helper/daemon
+(`experimental/persistent-pty`) esta **ROTA en Android** (HTTP 503: `/dev/pts` con `mode=600`
+y sin `/dev/shm`). `node:worker_threads` **FUNCIONAL** de extremo a extremo.
+
+Informe maestro: `motor/fase2.6/informe-fase2.6.md` · Entrega: `docs/09-fase2.6-pty-workers.md`
+
 ## Integridad
 
 ```
@@ -152,6 +177,14 @@ python3 motor/tools/audit_platform.py           # 565 contactos -> motor/platfor
 python3 motor/tools/emit_platform_audit.py      # -> motor/platform/audit-2.1.md
 python3 motor/tools/validate_platform_design.py # -> motor/platform/validation-2.5.md + .json
 bash    motor/tools/typecheck_platform.sh       # tsc --noEmit sobre el contrato
+
+# Fase 2.6 (validacion experimental; requiere el APK instalado y el servidor vivo)
+L=/data/app/app.opencodehost-*/lib/arm64
+F26_OUT=motor/fase2.6/results/workers_battery6.json \
+F26_LOG=motor/fase2.6/results/workers_battery6.log \
+LD_LIBRARY_PATH=$L BUN_BE_BUN=1 $L/libopencode.so run motor/fase2.6/probes/workers_battery6.js
+OPENCODE_PASSWORD='...' bash motor/fase2.6/probes/pty_battery.sh
+node motor/fase2.6/probes/workers_node_oracle.mjs   # oraculo diferencial Node v26
 ```
 
 ---
@@ -184,6 +217,9 @@ validacion arquitectonica mecanica.
 
 Informe maestro: `docs/08-fase2-plataforma.md`.
 
+**Fase 2.6 completada:** los gaps no medidos (PTY, `worker_threads`) ya estan verificados.
+Ver `docs/09-fase2.6-pty-workers.md`.
+
 **Detenido.** La Fase 3 requiere autorizacion expresa.
-Orden recomendado: **(c) verificar los gaps no medidos** (PTY, `worker_threads`) ->
-**(a) cerrar el gap de `ripgrep`** (`arm64-android`) -> **(b) instrumentar el contrato**.
+Orden recomendado: **(a) cerrar el gap de `ripgrep`** (`arm64-android`) ->
+**(b) instrumentar el contrato**.

@@ -1,0 +1,1 @@
+{"location":{"directory":"/data/data/app.opencodehost/files/home/work"},"data":{"id":"pty_1ec661781001n7Llop2YGdJD80","title":"f26-P6-signal","command":"sh","args":["-c","trap 'echo GOT_SIGTERM; exit 42' TERM; echo READY_FOR_SIGNAL; while true; do sleep 1; done","-l"],"cwd":"/data/data/app.opencodehost/files/home/work","status":"running","pid":7556}}

@@ -1,0 +1,16 @@
+{
+  "url": "http://127.0.0.1:4096/api/pty//connect",
+  "events": [
+    {
+      "t": "error",
+      "message": "WebSocket connection to 'http://127.0.0.1:4096/api/pty//connect' failed: Expected 101 status code"
+    },
+    {
+      "t": "close",
+      "code": 1002,
+      "reason": "Expected 101 status code"
+    }
+  ],
+  "frames": [],
+  "framesText": ""
+}

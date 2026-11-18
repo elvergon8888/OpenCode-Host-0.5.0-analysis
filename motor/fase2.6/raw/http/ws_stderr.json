@@ -1,0 +1,35 @@
+{
+  "url": "ws://127.0.0.1:4096/api/pty/pty_1ec5b6f0e001S4y4RlsjPDsBYH/connect",
+  "events": [
+    {
+      "t": "open"
+    },
+    {
+      "t": "sent",
+      "op": 1,
+      "d": "echo OUT_MARKER_1; echo ERR_MARKER_2 1>&2\n",
+      "bytes": 42
+    }
+  ],
+  "frames": [
+    {
+      "type": "text",
+      "data": ":/data/data/app.opencodehost/files/home/work $ echo MARKER_STDOUT\r\r\nMARKER_STDOUT\r\n:/data/data/app.opencodehost/files/home/work $ ",
+      "hex": "3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b2024206563686f204d41524b45525f5354444f55540d0d0a4d41524b45525f5354444f55540d0a3a2f646174612f646174612f6170702e6f70656e636f6465686f73742f66696c65732f686f6d652f776f726b202420",
+      "bytes": 130
+    },
+    {
+      "type": "binary",
+      "data": "\u0000{\"cursor\":130}",
+      "hex": "007b22637572736f72223a3133307d",
+      "bytes": 15
+    },
+    {
+      "type": "text",
+      "data": "echo OUT_MARKER_1; echo ERR_MAR\rcho OUT_MARKER_1; echo ERR_MAR                                                <\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bKER_2 1>&2\r\r\nOUT_MARKER_1\r\nERR_MARKER_2\r\n:/data/data/app.opencodehost/files/home/work $ ",
+      "hex": "6563686f204f55545f4d41524b45525f313b206563686f204552525f4d41520d63686f204f55545f4d41524b45525f313b206563686f204552525f4d41522020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020203c080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808084b45525f3220313e26320d0d0a4f55545f4d41524b45525f310d0a4552525f4d41524b45525f320d",
+      "bytes": 248
+    }
+  ],
+  "framesText": ":/data/data/app.opencodehost/files/home/work $ echo MARKER_STDOUT\r\r\nMARKER_STDOUT\r\n:/data/data/app.opencodehost/files/home/work $ \u0000{\"cursor\":130}echo OUT_MARKER_1; echo ERR_MAR\rcho OUT_MARKER_1; echo ERR_MAR                                                <\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bKER_2 1>&2\r\r\nOUT_MARKER_1\r\nERR_MARKER_2\r\n:/data/data/app.opencodehost/files/home/work $ "
+}

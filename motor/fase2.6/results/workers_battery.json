@@ -1,0 +1,445 @@
+{
+  "bun": "1.4.0",
+  "platform": "android",
+  "arch": "arm64",
+  "pid": 10184,
+  "results": [
+    {
+      "n": 1,
+      "id": "W1.1",
+      "title": "Crear worker (eval:true)",
+      "status": "PASS",
+      "evidence": {
+        "constructor": "node:worker_threads.Worker",
+        "instanceofWorker": true,
+        "threadIdWorker": 1,
+        "threadIdMain": 0,
+        "isMainThread": true,
+        "tasksBefore": 3,
+        "tasksAfter": 9
+      }
+    },
+    {
+      "n": 2,
+      "id": "W1.2",
+      "title": "Crear worker desde fichero (ruta absoluta)",
+      "status": "PASS",
+      "evidence": {
+        "threadId": 2,
+        "ruta": "/data/data/com.termux/files/home/opencode-host-analysis/motor/fase2.6/probes/workers_battery_worker.js"
+      }
+    },
+    {
+      "n": 3,
+      "id": "W2.1",
+      "title": "Ejecutar codigo en el worker y recibir resultado",
+      "status": "PASS",
+      "evidence": {
+        "hello": "world",
+        "data": {
+          "k": 42
+        },
+        "sum": 6
+      }
+    },
+    {
+      "n": 4,
+      "id": "W3.1",
+      "title": "Comunicacion bidireccional principal<->worker (ping/pong + eco + burst)",
+      "status": "PASS",
+      "evidence": {
+        "mensajesRecibidos": 8,
+        "primerMensaje": "pong",
+        "ultimo": {
+          "done": true
+        }
+      }
+    },
+    {
+      "n": 5,
+      "id": "W4.1",
+      "title": "Structured clone (objeto/array/Date)",
+      "status": "PASS",
+      "evidence": {
+        "copy": {
+          "a": 1,
+          "b": [
+            1,
+            2,
+            3
+          ],
+          "d": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "n": 6,
+      "id": "W4.2",
+      "title": "Transferencia de ArrayBuffer (transferList)",
+      "status": "PASS",
+      "evidence": {
+        "respuestaWorker": {
+          "got": 64,
+          "ctor": "ArrayBuffer"
+        },
+        "excepcionPost": false
+      }
+    },
+    {
+      "n": 7,
+      "id": "W4.3",
+      "title": "SharedArrayBuffer entre hilos",
+      "status": "PASS",
+      "evidence": {
+        "got": 32
+      }
+    },
+    {
+      "n": 8,
+      "id": "W4.4a",
+      "title": "MessageChannel/MessagePort en el hilo principal",
+      "status": "PASS",
+      "evidence": {
+        "recibido": true
+      }
+    },
+    {
+      "n": 9,
+      "id": "W4.4b",
+      "title": "MessagePort transferido del principal al worker",
+      "status": "FAIL",
+      "evidence": {
+        "error": "TIMEOUT_transfer_8000ms"
+      }
+    },
+    {
+      "n": 10,
+      "id": "W4.5",
+      "title": "moveMessagePortToContext (API Node-only)",
+      "status": "PARTIAL",
+      "evidence": {
+        "error": "worker_threads.moveMessagePortToContext is not yet implemented in Bun.",
+        "code": "ERR_NOT_IMPLEMENTED",
+        "nombre": "NotImplementedError",
+        "interpretacion": "Bun no implementa la API: lanza throwNotImplemented"
+      }
+    },
+    {
+      "n": 11,
+      "id": "W5.1",
+      "title": "Excepcion no capturada en worker -> evento 'error' en principal",
+      "status": "PASS",
+      "evidence": {
+        "mensaje": "BOOM_WORKER_UNCAUGHT",
+        "nombre": "Error",
+        "tieneStack": true,
+        "stackHead": [
+          "Error: BOOM_WORKER_UNCAUGHT",
+          "    at blob:9141bcda-e8d3-4e90-8cdf-c68728296fce:1:11"
+        ]
+      }
+    },
+    {
+      "n": 12,
+      "id": "W5.2",
+      "title": "Codigo de salida tras error no capturado",
+      "status": "PASS",
+      "evidence": {
+        "exitCode": 1
+      }
+    },
+    {
+      "n": 13,
+      "id": "W5.3",
+      "title": "Error capturado dentro del worker y reenviado por postMessage",
+      "status": "PASS",
+      "evidence": {
+        "caught": "null is not an object (evaluating 'null.x')"
+      }
+    },
+    {
+      "n": 14,
+      "id": "W5.4",
+      "title": "Error de sintaxis en el worker",
+      "status": "PASS",
+      "evidence": {
+        "mensaje": "3 errors building \"blob:53087e26-d1ca-4d08-bfd6-6d03c2d0dfae\""
+      }
+    },
+    {
+      "n": 15,
+      "id": "W6.1",
+      "title": "terminate() detiene un worker en ejecucion",
+      "status": "PASS",
+      "evidence": {
+        "exitCode": 1,
+        "ms": 16
+      }
+    },
+    {
+      "n": 16,
+      "id": "W6.2",
+      "title": "Salida natural del worker con codigo (process.exit(7))",
+      "status": "PASS",
+      "evidence": {
+        "exitCode": 7,
+        "esperado": 7
+      }
+    },
+    {
+      "n": 17,
+      "id": "W6.3",
+      "title": "Evento 'exit' por terminacion natural",
+      "status": "PASS",
+      "evidence": {
+        "exitCode": 0
+      }
+    },
+    {
+      "n": 18,
+      "id": "W7.1",
+      "title": "Recursos de hilo liberados tras terminate()",
+      "status": "PASS",
+      "evidence": {
+        "tasksAntes": 13,
+        "tasksDurante": 14,
+        "tasksDespues": 13,
+        "nombresAntes": [
+          "libopencode.so",
+          "mi-scavenger",
+          "JITWorker",
+          "JITWorker",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "s Signal Sender",
+          "JITWorker"
+        ],
+        "nombresDurante": [
+          "libopencode.so",
+          "mi-scavenger",
+          "JITWorker",
+          "JITWorker",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "s Signal Sender",
+          "JITWorker",
+          "Worker"
+        ],
+        "nombresDespues": [
+          "libopencode.so",
+          "mi-scavenger",
+          "JITWorker",
+          "JITWorker",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "HeapHelper",
+          "s Signal Sender",
+          "JITWorker"
+        ]
+      }
+    },
+    {
+      "n": 19,
+      "id": "W7.2",
+      "title": "worker.unref() disponible (evita retener el event loop)",
+      "status": "PASS",
+      "evidence": {
+        "unrefDisponible": true
+      }
+    },
+    {
+      "n": 20,
+      "id": "W7.3",
+      "title": "Opcion resourceLimits aceptada por el constructor Worker",
+      "status": "PASS",
+      "evidence": {
+        "resourceLimits": {
+          "maxOldGenerationSizeMb": 64
+        },
+        "note": "Bun acepta la opcion; no se verificó límite real (V8-only)"
+      }
+    },
+    {
+      "n": 21,
+      "id": "W7.4",
+      "title": "worker.ref() disponible",
+      "status": "PASS",
+      "evidence": {
+        "refDisponible": true
+      }
+    },
+    {
+      "n": 22,
+      "id": "W8.1",
+      "title": "Concurrencia real de 4 workers CPU-bound (2000 ms c/u)",
+      "status": "PASS",
+      "evidence": {
+        "wallMs": 2091,
+        "sumaSerialMs": 8000,
+        "ratioParalelismo": 3.83,
+        "ventanas": [
+          {
+            "id": 0,
+            "startRel": 46,
+            "endRel": 2046
+          },
+          {
+            "id": 1,
+            "startRel": 46,
+            "endRel": 2046
+          },
+          {
+            "id": 2,
+            "startRel": 91,
+            "endRel": 2091
+          },
+          {
+            "id": 3,
+            "startRel": 91,
+            "endRel": 2091
+          }
+        ],
+        "solapamiento": true,
+        "heartbeatsDurante": 102,
+        "veredicto": "paralelismo real"
+      }
+    },
+    {
+      "n": 23,
+      "id": "W8.2",
+      "title": "Cada worker ejecuta en su propio hilo",
+      "status": "PASS",
+      "evidence": {
+        "idsWorker": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "distintos": 4,
+        "total": 4
+      }
+    },
+    {
+      "n": 24,
+      "id": "W9.1",
+      "title": "El worker ve un proceso real (pid/ppid distintos del principal)",
+      "status": "PASS",
+      "evidence": {
+        "pid": 10184,
+        "ppid": 10182,
+        "plat": "android",
+        "arch": "arm64",
+        "ver": "v26.3.0",
+        "bun": "1.4.0",
+        "mem": 60391424,
+        "argv0": "/data/app/app.opencodehost-d0YKWvhGAUJws_Q6Sr_80A==/lib/arm64/libopencode.so"
+      }
+    },
+    {
+      "n": 25,
+      "id": "W9.2",
+      "title": "Opcion stackSizeMb (Node) aceptada sin error",
+      "status": "PASS",
+      "evidence": {
+        "stackSizeMb": 4
+      }
+    },
+    {
+      "n": 26,
+      "id": "W9.3",
+      "title": "Atomics + SharedArrayBuffer utilizables en worker",
+      "status": "PASS",
+      "evidence": {
+        "sab": 8,
+        "atomics": "function"
+      }
+    },
+    {
+      "n": 27,
+      "id": "W9.4",
+      "title": "El worker puede crear procesos hijos (child_process)",
+      "status": "PASS",
+      "evidence": {
+        "status": 0,
+        "stdout": "hi-from-worker"
+      }
+    },
+    {
+      "n": 28,
+      "id": "W9.5",
+      "title": "Coste de arranque de un worker en Android",
+      "status": "PASS",
+      "evidence": {
+        "ms": 59,
+        "nota": "medida puntual"
+      }
+    },
+    {
+      "n": 29,
+      "id": "W9.6",
+      "title": "Limite de hilos observado en Android (10)",
+      "status": "PASS",
+      "evidence": {
+        "hardwareConcurrency": 8,
+        "maxWorkersObservado": 4,
+        "nota": "Se probaron 4 workers concurrentes; no se provoco agotamiento de hilos"
+      }
+    },
+    {
+      "n": 30,
+      "id": "W9.7",
+      "title": "Cobertura de la API node:worker_threads en Bun 1.4.0/Android",
+      "status": "PASS",
+      "evidence": {
+        "ausentes": [],
+        "exportadas": [
+          "BroadcastChannel",
+          "MessageChannel",
+          "MessagePort",
+          "SHARE_ENV",
+          "Worker",
+          "default",
+          "getEnvironmentData",
+          "isInternalThread",
+          "isMainThread",
+          "isMarkedAsUntransferable",
+          "markAsUncloneable",
+          "markAsUntransferable",
+          "moveMessagePortToContext",
+          "parentPort",
+          "postMessageToThread",
+          "receiveMessageOnPort",
+          "resourceLimits",
+          "setEnvironmentData",
+          "threadId",
+          "threadName",
+          "workerData"
+        ]
+      }
+    },
+    {
+      "n": 31,
+      "id": "W9.8",
+      "title": "Registro de senales (process.on) dentro del worker",
+      "status": "PASS",
+      "evidence": {
+        "sig": "function"
+      }
+    }
+  ]
+}

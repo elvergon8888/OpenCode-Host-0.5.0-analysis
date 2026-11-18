@@ -1,0 +1,1 @@
+{"_tag":"ServiceUnavailableError","message":"ENOENT: no such file or directory, open '/data/user/0/app.opencodehost/files/home/.local/state/opencode/pty/c8fad1ec-47a9-4a82-a809-74cfca632f7f/service.json'","service":"opencode-pty"}
