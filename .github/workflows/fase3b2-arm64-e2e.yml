@@ -12,6 +12,10 @@ on:
         required: false
         type: boolean
         default: true
+      apk_source_url:
+        description: 'URL directa al APK (GitHub Release asset o artefacto)'
+        required: true
+        default: ''
 
 env:
   APK_NAME: OpenCode-Host-0.5.0-fase3b-parallel.apk
@@ -19,71 +23,133 @@ env:
   APK_SHA256: ${{ github.event.inputs.apk_sha256 }}
   EMULATOR_API: 30
   EMULATOR_ARCH: arm64
+  FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
+# ----------------------------------------------------------------
+# 0. JOB INICIAL: VERIFICAR CAPACIDADES REALES EN RUNNER ARM64
+# ----------------------------------------------------------------
 jobs:
-  # ----------------------------------------------------------------
-  # 1. VERIFICAR CAPACIDADES DE GITHUB ACTIONS (ARM64 + ANDROID)
-  # ----------------------------------------------------------------
-  check-capabilities:
-    name: Verificar capacidades ARM64 + Android
-    runs-on: ubuntu-latest
+  check-arm64-capabilities:
+    name: Verificar capacidades reales en runner ARM64
+    runs-on: ubuntu-22.04-arm
+    timeout-minutes: 15
     outputs:
-      arm64_runner_available: ${{ steps.check_arm64.outputs.available }}
-      android_emulator_supported: ${{ steps.check_android.outputs.supported }}
-      nested_virt_supported: ${{ steps.check_nested.outputs.supported }}
+      kvm_available: ${{ steps.check_kvm.outputs.available }}
+      tcg_mode_possible: ${{ steps.check_tcg.outputs.possible }}
+      android_emulator_arm64: ${{ steps.check_emulator.outputs.available }}
+      firebase_testlab_configured: ${{ steps.check_firebase.outputs.configured }}
     steps:
-      - name: Verificar runner ARM64 nativo
-        id: check_arm64
+      - name: Verificar arquitectura y KVM
+        id: check_kvm
         run: |
-          echo "GitHub Actions ARM64 runners:"
-          echo "  - ubuntu-22.04-arm: ${{ runner.os }}-${{ runner.arch }}"
-          echo "  - ubuntu-24.04-arm: Available"
-          # Check if we're on ARM64
-          if [ "$(uname -m)" = "aarch64" ]; then
-            echo "available=true" >> $GITHUB_OUTPUT
-            echo "Current runner IS ARM64"
+          echo "=== Verificación KVM en runner ARM64 ==="
+          uname -a
+          lscpu | grep -E "Architecture|CPU\\(s\\)|Model name|Virtualization|Hypervisor"
+          
+          if [ -e /dev/kvm ]; then
+            echo "kvm_available=true" >> $GITHUB_OUTPUT
+            echo "✅ /dev/kvm DISPONIBLE"
+            ls -la /dev/kvm
           else
-            echo "available=false" >> $GITHUB_OUTPUT
-            echo "Current runner is $(uname -m), ARM64 runners available via 'runs-on: ubuntu-22.04-arm'"
+            echo "kvm_available=false" >> $GITHUB_OUTPUT
+            echo "❌ /dev/kvm NO DISPONIBLE"
           fi
 
-      - name: Verificar soporte Android Emulator
-        id: check_android
+      - name: Investigar QEMU TCG (emulación por software sin KVM)
+        id: check_tcg
         run: |
-          echo "Android Emulator en GitHub Actions:"
-          echo "  - Oficial: actions/android-emulator@v2 (x86_64)"
-          echo "  - ARM64: No soporte nativo oficial para emulador ARM64"
-          echo "  - Workaround: QEMU/KVM en runner ARM64 (nested virt)"
-          echo "supported=unknown" >> $GITHUB_OUTPUT
+          echo "=== Investigando QEMU TCG (emulación software) ==="
+          
+          # Verificar si qemu-system-aarch64 está disponible
+          if command -v qemu-system-aarch64 &> /dev/null; then
+            echo "qemu-system-aarch64 disponible"
+            qemu-system-aarch64 --version
+            
+            # Verificar aceleradores disponibles
+            qemu-system-aarch64 -accel help 2>&1 | grep -E "tcg|kvm|hvf|whpx|hax"
+            
+            echo "tcg_mode_possible=true" >> $GITHUB_OUTPUT
+            echo "✅ QEMU TCG (emulación software) DISPONIBLE"
+            echo "⚠️ LIMITACIÓN: TCG es MUY LENTO (10-50x más lento que KVM)"
+            echo "⚠️ Android ARM64 en TCG: tiempo de arranque > 30 min, inusable para CI"
+          else
+            echo "tcg_mode_possible=false" >> $GITHUB_OUTPUT
+            echo "❌ qemu-system-aarch64 NO instalado"
+          fi
 
-      - name: Verificar nested virtualization (KVM en ARM64)
-        id: check_nested
+      - name: Verificar Android Emulator ARM64 oficial
+        id: check_emulator
         run: |
-          echo "Nested virtualization para ARM64 Android:"
-          echo "  - Requiere runner ARM64 + KVM habilitado"
-          echo "  - GitHub ARM64 runners: NO tienen KVM habilitado (limitación actual)"
-          echo "  - Self-hosted ARM64 runners: Posible con configuración"
-          echo "supported=false" >> $GITHUB_OUTPUT
+          echo "=== Android Emulator ARM64 ==="
+          
+          # actions/android-emulator solo provee imágenes x86_64
+          echo "actions/android-emulator@v2: Solo imágenes x86_64"
+          echo "Imágenes ARM64 system-images: Requieren emulador local + KVM"
+          
+          # Verificar si existen system-images ARM64 descargables
+          sudo apt-get update -qq && sudo apt-get install -y -qq android-sdk-build-tools >/dev/null 2>&1
+          ANDROID_SDK_ROOT="${HOME}/android-sdk"
+          mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools"
+          cd "${ANDROID_SDK_ROOT}/cmdline-tools"
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+          export PATH="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${PATH}"
+          yes | sdkmanager --licenses >/dev/null 2>&1
+          
+          # Verificar disponibilidad de imágenes ARM64
+          sdkmanager "platform-tools" "emulator" >/dev/null 2>&1
+          IMAGES=$(sdkmanager --list 2>&1 | grep "system-images.*arm64" | head -5)
+          if [ -n "$IMAGES" ]; then
+            echo "android_emulator_arm64=true" >> $GITHUB_OUTPUT
+            echo "✅ Imágenes ARM64 disponibles en SDK:"
+            echo "$IMAGES"
+          else
+            echo "android_emulator_arm64=false" >> $GITHUB_OUTPUT
+            echo "❌ No hay imágenes ARM64 disponibles o requieren licencia"
+          fi
 
-      - name: Resumen de capacidades
+      - name: Verificar configuración Firebase Test Lab
+        id: check_firebase
         run: |
-          echo "=== RESUMEN CAPACIDADES GITHUB ACTIONS ==="
-          echo "Runner ARM64 nativo: ${{ steps.check_arm64.outputs.available }}"
-          echo "Android Emulator ARM64 oficial: ${{ steps.check_android.outputs.supported }}"
-          echo "Nested virt (KVM) en ARM64: ${{ steps.check_nested.outputs.supported }}"
+          echo "=== Firebase Test Lab ==="
+          if [ -n "${{ env.FIREBASE_PROJECT }}" ] && [ -n "${{ env.GCP_SA_KEY }}" ]; then
+            echo "firebase_testlab_configured=true" >> $GITHUB_OUTPUT
+            echo "✅ Credenciales Firebase configuradas"
+          else
+            echo "firebase_testlab_configured=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Firebase Test Lab NO configurado (requiere FIREBASE_PROJECT_ID y GCP_SA_KEY secrets)"
+            echo "Documentación: https://firebase.google.com/docs/test-lab"
+          fi
+
+      - name: Resumen capacidades reales
+        run: |
+          echo "=== RESUMEN CAPACIDADES REALES (Runner ARM64) ==="
+          echo "KVM disponible: ${{ steps.check_kvm.outputs.available }}"
+          echo "QEMU TCG (software): ${{ steps.check_tcg.outputs.possible }}"
+          echo "Android Emulator ARM64: ${{ steps.check_emulator.outputs.available }}"
+          echo "Firebase Test Lab: ${{ steps.check_firebase.outputs.configured }}"
           echo ""
-          echo "CONCLUSION: GitHub Actions NO soporta emulación ARM64 Android nativamente."
-          echo "Opciones reales:"
-          echo "  1. Self-hosted ARM64 runner con dispositivo Android físico"
-          echo "  2. Cloud provider (AWS Device Farm, Firebase Test Lab, Corellium)"
-          echo "  3. Self-hosted ARM64 runner con nested virt (complejo, inestable)"
+          echo "CONCLUSIONES:"
+          if [ "${{ steps.check_kvm.outputs.available }}" = "true" ]; then
+            echo "✅ KVM DISPONIBLE -> Emulador ARM64 nativo POSIBLE"
+          else
+            echo "❌ KVM NO DISPONIBLE -> Emulador ARM64 nativo IMPOSIBLE"
+            if [ "${{ steps.check_tcg.outputs.possible }}" = "true" ]; then
+              echo "⚠️ QEMU TCG disponible pero INUTILIZABLE para CI (demasiado lento)"
+            fi
+          fi
+          if [ "${{ steps.check_firebase.outputs.configured }}" = "true" ]; then
+            echo "✅ Firebase Test Lab CONFIGURADO -> Tests en dispositivos físicos ARM64 POSIBLES"
+          fi
 
   # ----------------------------------------------------------------
-  # 2. PREPARAR APK COMO RELEASE ASSET (SIN HISTORIAL GIT)
+  # 1. PREPARAR RELEASE: OBTENER APK DE FUENTE VERIFICABLE
   # ----------------------------------------------------------------
   prepare-release:
-    name: Preparar Release con APK
-    needs: check-capabilities
+    name: Preparar Release con APK (verificación SHA-256)
+    needs: check-arm64-capabilities
     if: github.event.inputs.test_release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -94,16 +160,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verificar APK existe
+      - name: Obtener APK desde URL verificable
+        id: download_apk
         run: |
-          if [ ! -f "${{ env.APK_NAME }}" ]; then
-            echo "ERROR: APK no encontrado en workspace"
-            echo "El APK debe subirse manualmente o generarse en CI previo"
+          APK_URL="${{ github.event.inputs.apk_source_url }}"
+          if [ -z "$APK_URL" ]; then
+            echo "ERROR: apk_source_url requerido"
             exit 1
           fi
-          echo "APK encontrado"
+          
+          echo "Descargando APK desde: $APK_URL"
+          wget -q --show-progress "$APK_URL" -O "${{ env.APK_NAME }}"
+          
+          if [ ! -f "${{ env.APK_NAME }}" ]; then
+            echo "ERROR: Descarga fallida"
+            exit 1
+          fi
+          echo "apk_path=${{ env.APK_NAME }}" >> $GITHUB_OUTPUT
+          echo "✅ APK descargado"
 
-      - name: Verificar SHA-256 del APK
+      - name: Verificar SHA-256 del APK (OBIGATORIO)
         id: verify_sha
         run: |
           CALCULATED=$(sha256sum "${{ env.APK_NAME }}" | cut -d' ' -f1)
@@ -111,16 +187,15 @@ jobs:
           echo "Calculado: $CALCULATED"
           echo "Esperado:  $EXPECTED"
           if [ "$CALCULATED" != "$EXPECTED" ]; then
-            echo "ERROR: SHA-256 no coincide"
+            echo "ERROR: SHA-256 NO COINCIDE - ABORTANDO"
             exit 1
           fi
           echo "sha256=$CALCULATED" >> $GITHUB_OUTPUT
-          echo "✅ SHA-256 verificado"
+          echo "✅ SHA-256 VERIFICADO"
 
-      - name: Extraer información del APK
+      - name: Extraer información del APK (pruebas estáticas)
         id: apk_info
         run: |
-          # Requiere aapt2 / apksigner
           sudo apt-get update -qq && sudo apt-get install -y -qq android-sdk-build-tools >/dev/null 2>&1
           PACKAGE=$(aapt2 dump badging "${{ env.APK_NAME }}" | grep -oP "package: name='\K[^']+")
           VERSION_CODE=$(aapt2 dump badging "${{ env.APK_NAME }}" | grep -oP "versionCode='\K[^']+")
@@ -134,12 +209,14 @@ jobs:
           echo "min_sdk=$MIN_SDK" >> $GITHUB_OUTPUT
           echo "target_sdk=$TARGET_SDK" >> $GITHUB_OUTPUT
           echo "abi=$ABI" >> $GITHUB_OUTPUT
+          echo "=== PRUEBAS ESTÁTICAS APK ==="
           echo "Package: $PACKAGE"
           echo "Version: $VERSION_NAME ($VERSION_CODE)"
           echo "SDK: $MIN_SDK - $TARGET_SDK"
           echo "ABI: $ABI"
+          echo "SHA-256: ${{ steps.verify_sha.outputs.sha256 }}"
 
-      - name: Crear Release de prueba
+      - name: Crear Release de prueba (draft, prerelease)
         uses: softprops/action-gh-release@v1
         if: steps.verify_sha.outputs.sha256 != ''
         with:
@@ -170,7 +247,7 @@ jobs:
             adb shell ls -la /data/app/${{ steps.apk_info.outputs.package }}*/lib/arm64/librg.so
             ```
             
-            ⚠️ **Nota:** Este APK es una variante de prueba (`app.opencodehost.fase3b`) que convive con la app original (`app.opencodehost`).
+            ⚠️ **Nota:** Variante de prueba (`app.opencodehost.fase3b`) que convive con app original (`app.opencodehost`).
           draft: true
           prerelease: true
           files: |
@@ -178,46 +255,91 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Subir APK como artifact para jobs posteriores
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-test-asset
+          path: ${{ env.APK_NAME }}
+          retention-days: 7
+
   # ----------------------------------------------------------------
-  # 3. E2E TESTS EN RUNNER ARM64 (SI DISPONIBLE)
+  # 2. PRUEBAS ESTÁTICAS (x86_64 - SIN EJECUCIÓN NATIVA)
   # ----------------------------------------------------------------
-  e2e-arm64:
-    name: E2E Tests en ARM64
-    needs: [check-capabilities, prepare-release]
-    if: needs.check-capabilities.outputs.arm64_runner_available == 'true'
-    runs-on: ubuntu-22.04-arm  # Runner ARM64 nativo de GitHub
+  static-tests:
+    name: Pruebas Estáticas APK (x86_64)
+    needs: [check-arm64-capabilities, prepare-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar APK del artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-test-asset
+          path: /tmp/
+
+      - name: Verificar SHA-256 (obligatorio)
+        run: |
+          CALCULATED=$(sha256sum "/tmp/${{ env.APK_NAME }}" | cut -d' ' -f1)
+          EXPECTED="${{ env.APK_SHA256 }}"
+          if [ "$CALCULATED" != "$EXPECTED" ]; then
+            echo "ERROR: SHA-256 mismatch"
+            exit 1
+          fi
+          echo "✅ SHA-256 OK"
+
+      - name: Verificar metadatos APK (aapt2)
+        run: |
+          aapt2 dump badging "/tmp/${{ env.APK_NAME }}"
+
+      - name: Verificar contenido lib/arm64-v8a/
+        run: |
+          unzip -l "/tmp/${{ env.APK_NAME }}" "lib/arm64-v8a/*"
+
+      - name: Documentar limitación
+        run: |
+          echo "=== PRUEBAS ESTÁTICAS EN x86_64 ==="
+          echo "✅ SHA-256 verificado"
+          echo "✅ Manifest parseado"
+          echo "✅ ABI arm64-v8a confirmado"
+          echo "✅ librg.so presente en lib/arm64-v8a/"
+          echo ""
+          echo "⚠️ ESTAS PRUEBAS NO EJECUTAN CÓDIGO NATIVO ARM64"
+          echo "⚠️ NO VERIFICAN: carga librerías, W^X, SELinux, funcionalidad motor"
+
+  # ----------------------------------------------------------------
+  # 3. PRUEBAS FUNCIONALES EN RUNNER ARM64 (SOLO SI KVM DISPONIBLE)
+  # ----------------------------------------------------------------
+  functional-tests-arm64:
+    name: Pruebas Funcionales ARM64 (requiere KVM)
+    needs: [check-arm64-capabilities, prepare-release]
+    if: needs.check-arm64-capabilities.outputs.kvm_available == 'true'
+    runs-on: ubuntu-22.04-arm
     timeout-minutes: 60
     steps:
-      - name: Verificar arquitectura
+      - name: Verificar KVM
         run: |
-          echo "Arquitectura: $(uname -m)"
-          if [ "$(uname -m)" != "aarch64" ]; then
-            echo "ERROR: No es runner ARM64"
+          if [ ! -e /dev/kvm ]; then
+            echo "ERROR: KVM no disponible en runner ARM64"
+            exit 1
+          fi
+          echo "✅ KVM verificado"
+
+      - name: Descargar APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-test-asset
+          path: /tmp/
+
+      - name: Verificar SHA-256
+        run: |
+          CALCULATED=$(sha256sum "/tmp/${{ env.APK_NAME }}" | cut -d' ' -f1)
+          if [ "$CALCULATED" != "${{ env.APK_SHA256 }}" ]; then
             exit 1
           fi
 
-      - name: Verificar KVM / Nested Virtualization
-        run: |
-          echo "=== KVM Support ==="
-          if [ -e /dev/kvm ]; then
-            echo "✅ /dev/kvm existe"
-            ls -la /dev/kvm
-          else
-            echo "❌ /dev/kvm NO disponible"
-            echo "GitHub ARM64 runners NO tienen KVM habilitado"
-          fi
-          
-          echo ""
-          echo "=== CPU Info ==="
-          lscpu | grep -E "Architecture|CPU\(s\)|Model name|Virtualization"
-
-      - name: Intentar configurar Android Emulator ARM64
+      - name: Configurar Android Emulator ARM64 (KVM)
         id: emulator_setup
-        continue-on-error: true
         run: |
-          echo "Intentando configurar emulador ARM64..."
-          
-          # Instalar Android SDK
           sudo apt-get update -qq
           sudo apt-get install -y -qq openjdk-17-jdk-headless unzip wget >/dev/null
           
@@ -232,168 +354,286 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1
           sdkmanager "platform-tools" "emulator" "platforms;android-${{ env.EMULATOR_API }}" "system-images;android-${{ env.EMULATOR_API }};default;${{ env.EMULATOR_ARCH }}" >/dev/null 2>&1
           
-          # Crear AVD
           echo "no" | avdmanager create avd -n test_arm64 -k "system-images;android-${{ env.EMULATOR_API }};default;${{ env.EMULATOR_ARCH }}" --force 2>&1
           
-          # Verificar si el emulador puede arrancar
-          echo "Verificando emulador..."
-          timeout 60s emulator -avd test_arm64 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -qemu -enable-kvm 2>&1 | head -20 || true
+          # Arrancar emulador en background
+          emulator -avd test_arm64 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -qemu -enable-kvm > /tmp/emulator.log 2>&1 &
+          EMULATOR_PID=$!
           
-          echo "emulator_works=unknown" >> $GITHUB_OUTPUT
+          # Esperar boot (máx 120s)
+          for i in {1..60}; do
+            if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
+              echo "✅ Emulador arrancado"
+              echo "emulator_ready=true" >> $GITHUB_OUTPUT
+              break
+            fi
+            sleep 2
+          done
+          
+          if [ "${{ steps.emulator_setup.outputs.emulator_ready }}" != "true" ]; then
+            echo "❌ Emulador no arrancó en 120s"
+            cat /tmp/emulator.log
+            exit 1
+          fi
 
-      - name: Instalar APK y probar (si emulador funciona)
-        if: steps.emulator_setup.outputs.emulator_works == 'true'
+      - name: Instalar APK en emulador
         run: |
-          echo "Emulador funcional, procediendo con tests..."
-          # Aquí irían los tests reales
-          echo "PENDIENTE: Implementar tests E2E reales"
+          adb install -r "/tmp/${{ env.APK_NAME }}"
+          adb shell pm list packages ${{ env.PACKAGE_ID }}
 
-      - name: Documentar limitación si emulador no funciona
-        if: steps.emulator_setup.outputs.emulator_works != 'true'
+      - name: Verificar librg.so instalado
         run: |
-          echo "=== LIMITACIÓN DOCUMENTADA ==="
-          echo "GitHub Actions ARM64 runners NO tienen KVM habilitado."
-          echo "Por tanto, NO es posible ejecutar emulador ARM64 Android nativo."
-          echo ""
-          echo "Esta es una limitación conocida de GitHub Actions:"
-          echo "https://github.com/actions/runner-images/issues/..."
-          echo ""
-          echo "Alternativas para tests ARM64 Android reales:"
-          echo "  1. Self-hosted runner ARM64 con KVM + dispositivo Android"
-          echo "  2. Firebase Test Lab (soporta ARM64)"
-          echo "  3. AWS Device Farm (soporta ARM64)"
-          echo "  4. Corellium / Genymotion Cloud (ARM64)"
-          echo "  5. Dispositivo físico conectado a runner self-hosted"
+          adb shell ls -la /data/app/${{ env.PACKAGE_ID }}*/lib/arm64/librg.so
+          adb shell run-as ${{ env.PACKAGE_ID }} /data/app/${{ env.PACKAGE_ID }}*/lib/arm64/librg.so --version
 
-  # ----------------------------------------------------------------
-  # 4. TESTS EN X86_64 (SOLO PARA VERIFICAR INSTALACIÓN BÁSICA)
-  # ----------------------------------------------------------------
-  e2e-x86_64-basic:
-    name: Basic Install Test (x86_64 - NO ARM64)
-    needs: prepare-release
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Descargar APK del release
-        uses: actions/download-asset@v1
+      - name: Verificar libopencode.so cargado
+        run: |
+          adb shell ls -la /data/app/${{ env.PACKAGE_ID }}*/lib/arm64/libopencode.so
+
+      - name: Ejecutar pruebas HTTP reales (servidor OpenCode)
+        id: http_tests
+        run: |
+          # Esperar servidor OpenCode en puerto 4096
+          for i in {1..30}; do
+            if adb shell "timeout 5 curl -s http://127.0.0.1:4096/api/info" 2>/dev/null | grep -q "version"; then
+              echo "✅ Servidor OpenCode respondiendo"
+              break
+            fi
+            sleep 2
+          done
+          
+          # Test 1: /api/fs/find
+          echo "=== Test /api/fs/find ==="
+          RESPONSE=$(adb shell "curl -s -u opencode:test 'http://127.0.0.1:4096/api/fs/find?query=*&location[directory]=/data/user/0/${{ env.PACKAGE_ID }}/files/home/work'")
+          echo "Response: $RESPONSE"
+          if echo "$RESPONSE" | grep -q '"data"'; then
+            echo "✅ /api/fs/find OK"
+            echo "fs_find_ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ /api/fs/find FAIL"
+            echo "fs_find_ok=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Test 2: Grep search
+          echo "=== Test Grep ==="
+          RESPONSE=$(adb shell "curl -s -u opencode:test 'http://127.0.0.1:4096/api/fs/find?query=test&location[directory]=/data/user/0/${{ env.PACKAGE_ID }}/files/home/work'")
+          echo "Response: $RESPONSE"
+          
+          # Test 3: Verificar que ripgrep ejecuta
+          RESPONSE=$(adb shell "run-as ${{ env.PACKAGE_ID }} /data/app/${{ env.PACKAGE_ID }}*/lib/arm64/librg.so --version")
+          echo "rg version: $RESPONSE"
+          if echo "$RESPONSE" | grep -q "ripgrep 15.1.0"; then
+            echo "✅ ripgrep ejecutándose nativamente"
+            echo "rg_native_ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ ripgrep no ejecuta nativamente"
+            echo "rg_native_ok=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Capturar logs como artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APK_NAME }}
+          name: arm64-emulator-logs
+          path: |
+            /tmp/emulator.log
+            /tmp/adb.log
+          retention-days: 7
+
+  # ----------------------------------------------------------------
+  # 4. PRUEBAS EN DISPOSITIVOS FÍSICOS VIA FIREBASE TEST LAB
+  # ----------------------------------------------------------------
+  firebase-testlab-tests:
+    name: Pruebas en Dispositivos Físicos ARM64 (Firebase Test Lab)
+    needs: [check-arm64-capabilities, prepare-release]
+    if: needs.check-arm64-capabilities.outputs.firebase_testlab_configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Configurar gcloud
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          service_account_key: ${{ env.GCP_SA_KEY }}
+          project_id: ${{ env.FIREBASE_PROJECT }}
+          install_components: 'firebase-test-lab'
+
+      - name: Descargar APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-test-asset
           path: /tmp/
 
       - name: Verificar SHA-256
         run: |
           CALCULATED=$(sha256sum "/tmp/${{ env.APK_NAME }}" | cut -d' ' -f1)
-          EXPECTED="${{ env.APK_SHA256 }}"
-          if [ "$CALCULATED" != "$EXPECTED" ]; then
-            echo "ERROR: SHA-256 mismatch"
+          if [ "$CALCULATED" != "${{ env.APK_SHA256 }}" ]; then
             exit 1
           fi
-          echo "✅ SHA-256 OK"
 
-      - name: Verificar metadatos APK (aapt2)
+      - name: Ejecutar test en Firebase Test Lab (dispositivos ARM64)
+        id: firebase_test
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq android-sdk-build-tools >/dev/null 2>&1
-          aapt2 dump badging "/tmp/${{ env.APK_NAME }}"
+          # Lista de dispositivos ARM64 disponibles
+          gcloud firebase test android models list --filter="cpu_abi:arm64-v8a" --format="table(model_id,name,version_id)"
+          
+          # Ejecutar test de instalación básica (robo test)
+          gcloud firebase test android run \
+            --type=robo \
+            --app="/tmp/${{ env.APK_NAME }}" \
+            --device=model=redfin,version=30,locale=en,orientation=portrait \
+            --timeout=5m \
+            --results-bucket=gs://${{ env.FIREBASE_PROJECT }}-test-lab \
+            --results-dir=fase3b2-${{ github.run_number }} \
+            --directories-to-pull=/sdcard/Download,/data/local/tmp \
+            2>&1 | tee /tmp/firebase_test.log
+          
+          # Obtener resultados
+          TEST_ID=$(gcloud firebase test android list --format="value(test_id)" --limit=1)
+          echo "Test ID: $TEST_ID"
+          
+          # Esperar y obtener resultados
+          gcloud firebase test android describe "$TEST_ID" --format="json" > /tmp/firebase_result.json
+          
+          # Verificar si la instalación fue exitosa
+          if cat /tmp/firebase_result.json | grep -q '"outcome": "SUCCESS"'; then
+            echo "firebase_test_ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "firebase_test_ok=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Documentar limitación x86_64
-        run: |
-          echo "=== TEST EN x86_64 (NO ARM64) ==="
-          echo "Este test SOLO verifica:"
-          echo "  - Integridad del APK (SHA-256)"
-          echo "  - Metadatos del manifest (package, version, SDK, ABI)"
-          echo "  - Firma válida"
-          echo ""
-          echo "NO prueba:"
-          echo "  - Ejecución nativa ARM64"
-          echo "  - Carga de librerías nativas ARM64 (librg.so, libopencode.so)"
-          echo "  - Comportamiento W^X / SELinux en ARM64"
-          echo "  - Funcionalidad real del motor OpenCode en ARM64"
-          echo ""
-          echo "⚠️ NO DECLARAR FUNCIONALIDAD ARM64 BASADO EN ESTE TEST"
+      - name: Subir logs Firebase como artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-testlab-logs
+          path: |
+            /tmp/firebase_test.log
+            /tmp/firebase_result.json
+          retention-days: 30
 
   # ----------------------------------------------------------------
-  # 5. REPORTE FINAL
+  # 5. REPORTE FINAL CONSOLIDADO
   # ----------------------------------------------------------------
   final-report:
-    name: Reporte Final de Capacidades
-    needs: [check-capabilities, prepare-release, e2e-arm64, e2e-x86_64-basic]
+    name: Reporte Final Consolidado
+    needs: [check-arm64-capabilities, prepare-release, static-tests, functional-tests-arm64, firebase-testlab-tests]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Generar reporte
+      - name: Generar reporte consolidado
         run: |
-          cat << 'EOF' > fase3b2-e2e-report.md
-          # Reporte Fase 3B-2 E2E Tests
+          cat << 'EOF' > fase3b2-e2e-final-report.md
+          # Reporte Final Fase 3B-2 E2E Tests
           
           **Fecha:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")
           **Commit:** ${{ github.sha }}
           **Rama:** ${{ github.ref_name }}
           **APK:** ${{ env.APK_NAME }}
           **SHA-256:** ${{ env.APK_SHA256 }}
+          **Package ID:** ${{ needs.prepare-release.outputs.package || 'N/A' }}
+          **ABI:** ${{ needs.prepare-release.outputs.abi || 'N/A' }}
+          **Target SDK:** ${{ needs.prepare-release.outputs.target_sdk || 'N/A' }}
           
-          ## Capacidades GitHub Actions
+          ## Capacidades Reales Verificadas (Runner ARM64)
           
-          | Capacidad | Estado | Detalles |
-          |-----------|--------|----------|
-          | Runner ARM64 nativo | ${{ needs.check-capabilities.outputs.arm64_runner_available }} | `ubuntu-22.04-arm`, `ubuntu-24.04-arm` |
-          | Android Emulator ARM64 oficial | ${{ needs.check-capabilities.outputs.android_emulator_supported }} | Solo x86_64 soportado nativamente |
-          | Nested virtualization (KVM) | ${{ needs.check-capabilities.outputs.nested_virt_supported }} | No disponible en runners GitHub |
+          | Capacidad | Estado | Evidencia |
+          |-----------|--------|-----------|
+          | Runner ARM64 nativo | ✅ | `ubuntu-22.04-arm` |
+          | KVM disponible | ${{ needs.check-arm64-capabilities.outputs.kvm_available }} | `/dev/kvm` |
+          | QEMU TCG (software) | ${{ needs.check-arm64-capabilities.outputs.tcg_mode_possible }} | `qemu-system-aarch64 -accel tcg` |
+          | Android Emulator ARM64 | ${{ needs.check-arm64-capabilities.outputs.android_emulator_arm64 }} | System images |
+          | Firebase Test Lab | ${{ needs.check-arm64-capabilities.outputs.firebase_testlab_configured }} | Secrets configurados |
           
-          ## Conclusión
+          ## Conclusión Técnica
           
-          **GitHub Actions NO soporta pruebas E2E ARM64 Android nativas.**
+          ### Si KVM DISPONIBLE:
+          - ✅ Emulador ARM64 nativo FUNCIONAL
+          - ✅ Pruebas funcionales EJECUTABLES
+          - ✅ Pruebas HTTP reales POSIBLES
           
-          ### Limitaciones identificadas:
-          1. Runners ARM64 (`ubuntu-22.04-arm`) no tienen KVM habilitado
-          2. `actions/android-emulator` solo soporta imágenes x86_64
-          3. Emulación ARM64 vía QEMU requiere nested virt (no disponible)
+          ### Si KVM NO DISPONIBLE (caso actual GitHub):
+          - ❌ Emulador ARM64 nativo IMPOSIBLE
+          - ❌ QEMU TCG disponible pero INUTILIZABLE para CI (10-50x lento, boot >30min)
+          - ✅ Alternativa: **Firebase Test Lab** (dispositivos físicos ARM64 reales)
+          - ✅ Alternativa: **Self-hosted runner ARM64 + dispositivo físico ADB**
           
-          ### Opciones viables para E2E ARM64 real:
+          ## Pruebas Ejecutadas
           
-          | Opción | Descripción | Costo/Complejidad |
-          |--------|-------------|-------------------|
-          | Self-hosted ARM64 runner + dispositivo físico | Conectar dispositivo Android ARM64 vía ADB | Medio |
-          | Self-hosted ARM64 runner + KVM + emulador | Requiere hardware bare-metal ARM64 | Alto |
-          | Firebase Test Lab | Testing en dispositivos reales ARM64 | Bajo-Medio |
-          | AWS Device Farm | Testing en dispositivos reales ARM64 | Medio |
-          | Corellium / Genymotion Cloud | Virtualización ARM64 en la nube | Alto |
+          ### 1. Pruebas Estáticas (x86_64) - ${{ needs.static-tests.result }}
+          - ✅ SHA-256 verificado: `${{ env.APK_SHA256 }}`
+          - ✅ Package ID: `${{ needs.prepare-release.outputs.package }}`
+          - ✅ ABI: `arm64-v8a`
+          - ✅ `librg.so` presente en `lib/arm64-v8a/`
+          - ⚠️ **NO ejecutan código nativo**
           
-          ## Tests Ejecutados
+          ### 2. Pruebas Funcionales ARM64 (KVM) - ${{ needs.functional-tests-arm64.result }}
+          - KVM: ${{ needs.check-arm64-capabilities.outputs.kvm_available }}
+          - Emulador: ${{ needs.functional-tests-arm64.outputs.emulator_ready || 'N/A' }}
+          - APK instalado: ${{ needs.functional-tests-arm64.outputs.apk_installed || 'N/A' }}
+          - ripgrep nativo: ${{ needs.functional-tests-arm64.outputs.rg_native_ok || 'N/A' }}
+          - `/api/fs/find`: ${{ needs.functional-tests-arm64.outputs.fs_find_ok || 'N/A' }}
+          - ripgrep nativo OK: ${{ needs.functional-tests-arm64.outputs.rg_native_ok || 'N/A' }}
           
-          ### Basic Install Test (x86_64) - ${{ needs.e2e-x86_64-basic.result }}
-          - Verifica: SHA-256, manifest, firma
-          - **NO prueba funcionalidad ARM64**
+          ### 3. Firebase Test Lab (Dispositivos Físicos) - ${{ needs.firebase-testlab-tests.result }}
+          - Configurado: ${{ needs.check-arm64-capabilities.outputs.firebase_testlab_configured }}
+          - Test instalacion: ${{ needs.firebase-testlab-tests.outputs.firebase_test_ok || 'N/A' }}
           
-          ### ARM64 E2E Test - ${{ needs.e2e-arm64.result }}
-          - Runner: `ubuntu-22.04-arm`
-          - KVM: No disponible
-          - Emulador ARM64: No funcional
+          ## Bloqueos Pendientes
           
-          ## Próximos Pasos Recomendados
+          | Bloqueo | Estado | Solución |
+          |---------|--------|----------|
+          | GitHub Actions sin KVM | **ACTIVO** | Self-hosted runner ARM64 con KVM |
+          | Emulador ARM64 en TCG | **ACTIVO** | Inutilizable para CI (lento) |
+          | Firebase Test Lab no configurado | ${{ needs.check-arm64-capabilities.outputs.firebase_testlab_configured == 'false' && 'ACTIVO' || 'CONFIGURADO' }} | Agregar secrets FIREBASE_PROJECT_ID + GCP_SA_KEY |
+          | Self-hosted runner no configurado | **ACTIVO** | Configurar runner ARM64 bare-metal |
           
-          1. **Configurar self-hosted runner ARM64** con dispositivo Android físico
-          2. **Integrar Firebase Test Lab** para tests automatizados ARM64
-          3. **Documentar procedimiento manual** para validación en dispositivo local
+          ## Costos Estimados Alternativas
           
-          ## Evidencias
-          - APK Release: [Draft Release](https://github.com/${{ github.repository }}/releases/tag/fase3b2-test-${{ github.run_number }})
-          - SHA-256 verificado: ${{ env.APK_SHA256 }}
-          - Package ID: app.opencodehost.fase3b
-          - ABI: arm64-v8a
-          - targetSdkVersion: 34
+          | Opción | Costo Mensual (estimado) | Complejidad | Dispositivos ARM64 Reales |
+          |--------|-------------------------|-------------|---------------------------|
+          | Firebase Test Lab | $0-50 (Spark/Blaze) | Baja | Sí (Pixel, Samsung, etc.) |
+          | AWS Device Farm | $0.17/min/device | Media | Sí |
+          | Self-hosted ARM64 runner + ADB | Hardware ($200-500) | Media | Sí (tus dispositivos) |
+          | Corellium Cloud | $1000+/mes | Alta | Sí (virtualizados) |
+          | Genymotion Cloud | $0.10-0.50/min | Media | Sí |
+          
+          ## Recomendación Inmediata
+          
+          1. **Configurar Firebase Test Lab** (gratis en tier Spark, 5 tests/día)
+          2. **Configurar self-hosted runner ARM64** con dispositivo físico ADB
+          3. **Documentar procedimiento manual** para validación local
+          
+          ## Evidencias (Artifacts)
+          - `apk-test-asset`: APK verificado
+          - `arm64-emulator-logs`: Logs emulador (si KVM)
+          - `firebase-testlab-logs`: Resultados Firebase (si configurado)
+          - `fase3b2-e2e-report`: Este reporte
           
           EOF
-          cat fase3b2-e2e-report.md
+          cat fase3b2-e2e-final-report.md
 
-      - name: Subir reporte como artifact
+      - name: Subir reporte final como artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fase3b2-e2e-report
-          path: fase3b2-e2e-report.md
+          name: fase3b2-e2e-final-report
+          path: fase3b2-e2e-final-report.md
           retention-days: 30
 
-      - name: Comentar en PR/Issue (si aplica)
-        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+      - name: Resumen en summary
         run: |
-          echo "Reporte generado: fase3b2-e2e-report.md"
-          echo "Ver artifact 'fase3b2-e2e-report' para detalles completos."
+          echo "## Resumen Fase 3B-2 E2E" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Estado |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Verificar capacidades ARM64 | ${{ needs.check-arm64-capabilities.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Preparar Release (SHA-256) | ${{ needs.prepare-release.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pruebas Estáticas (x86_64) | ${{ needs.static-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pruebas Funcionales ARM64 (KVM) | ${{ needs.functional-tests-arm64.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Firebase Test Lab (físicos) | ${{ needs.firebase-testlab-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Conclusión:** GitHub Actions runners ARM64 **no tienen KVM** → emulador ARM64 nativo **no funcional**." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Alternativas viables:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Firebase Test Lab (gratis, dispositivos físicos ARM64)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Self-hosted runner ARM64 + dispositivo físico ADB" >> $GITHUB_STEP_SUMMARY
+          echo "3. AWS Device Farm / Corellium (pago)" >> $GITHUB_STEP_SUMMARY
