@@ -24,128 +24,15 @@ on:
 
 env:
   APK_NAME: OpenCode-Host-0.5.0-fase3b-parallel.apk
-  PACKAGE_ID: app.opencodehost.fase3b
-  APK_SHA256: ${{ github.event.inputs.apk_sha256 }}
+  EXPECTED_PACKAGE_ID: app.opencodehost.fase3b
+  EXPECTED_ABI: arm64-v8a
+  EXPECTED_SHA256: 554762ca25618e124189c36b72c598cdaabc2382ada349f6e44bb1a221731089
   EMULATOR_API: 30
   EMULATOR_ARCH: arm64
-  FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
-# ===================================================================
-# 0. VERIFICAR CAPACIDADES REALES EN RUNNER ARM64
-# ===================================================================
 jobs:
-  check-arm64-capabilities:
-    name: Verificar capacidades reales en runner ARM64
-    runs-on: ubuntu-22.04-arm
-    timeout-minutes: 15
-    outputs:
-      kvm_available: ${{ steps.check_kvm.outputs.kvm_available }}
-      tcg_mode_possible: ${{ steps.check_tcg.outputs.tcg_mode_possible }}
-      android_emulator_arm64: ${{ steps.check_emulator.outputs.android_emulator_arm64 }}
-      firebase_testlab_configured: ${{ steps.check_firebase.outputs.firebase_testlab_configured }}
-    steps:
-      - name: Verificar arquitectura y KVM
-        id: check_kvm
-        run: |
-          echo "=== Verificación KVM en runner ARM64 ==="
-          uname -a
-          lscpu | grep -E "Architecture|CPU\(s\)|Model name|Virtualization|Hypervisor"
-          
-          if [ -e /dev/kvm ]; then
-            echo "kvm_available=true" >> $GITHUB_OUTPUT
-            echo "✅ /dev/kvm DISPONIBLE"
-            ls -la /dev/kvm
-          else
-            echo "kvm_available=false" >> $GITHUB_OUTPUT
-            echo "❌ /dev/kvm NO DISPONIBLE"
-          fi
-
-      - name: Investigar QEMU TCG (emulación por software sin KVM)
-        id: check_tcg
-        run: |
-          echo "=== Investigando QEMU TCG (emulación software) ==="
-          
-          if command -v qemu-system-aarch64 &> /dev/null; then
-            echo "qemu-system-aarch64 disponible"
-            qemu-system-aarch64 --version
-            
-            qemu-system-aarch64 -accel help 2>&1 | grep -E "tcg|kvm|hvf|whpx|hax"
-            
-            echo "tcg_mode_possible=true" >> $GITHUB_OUTPUT
-            echo "✅ QEMU TCG (emulación software) DISPONIBLE"
-            echo "⚠️ LIMITACIÓN: TCG es MUY LENTO (10-50x más lento que KVM)"
-            echo "⚠️ Android ARM64 en TCG: tiempo de arranque > 30 min, inusable para CI"
-          else
-            echo "tcg_mode_possible=false" >> $GITHUB_OUTPUT
-            echo "❌ qemu-system-aarch64 NO instalado"
-          fi
-
-      - name: Verificar Android Emulator ARM64 oficial
-        id: check_emulator
-        run: |
-          echo "=== Android Emulator ARM64 ==="
-          
-          echo "actions/android-emulator@v2: Solo imágenes x86_64"
-          echo "Imágenes ARM64 system-images: Requieren emulador local + KVM"
-          
-          sudo apt-get update -qq && sudo apt-get install -y -qq android-sdk-build-tools >/dev/null 2>&1
-          ANDROID_SDK_ROOT="${HOME}/android-sdk"
-          mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools"
-          cd "${ANDROID_SDK_ROOT}/cmdline-tools"
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip
-          mv cmdline-tools latest
-          export PATH="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${PATH}"
-          yes | sdkmanager --licenses >/dev/null 2>&1
-          
-          sdkmanager "platform-tools" "emulator" >/dev/null 2>&1
-          IMAGES=$(sdkmanager --list 2>&1 | grep "system-images.*arm64" | head -5)
-          if [ -n "$IMAGES" ]; then
-            echo "android_emulator_arm64=true" >> $GITHUB_OUTPUT
-            echo "✅ Imágenes ARM64 disponibles en SDK:"
-            echo "$IMAGES"
-          else
-            echo "android_emulator_arm64=false" >> $GITHUB_OUTPUT
-            echo "❌ No hay imágenes ARM64 disponibles o requieren licencia"
-          fi
-
-      - name: Verificar configuración Firebase Test Lab
-        id: check_firebase
-        run: |
-          echo "=== Firebase Test Lab ==="
-          if [ -n "${{ secrets.FIREBASE_PROJECT_ID }}" ] && [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "firebase_testlab_configured=true" >> $GITHUB_OUTPUT
-            echo "✅ Credenciales Firebase configuradas"
-          else
-            echo "firebase_testlab_configured=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ Firebase Test Lab NO configurado (requiere secrets FIREBASE_PROJECT_ID y GCP_SA_KEY)"
-            echo "Documentación: https://firebase.google.com/docs/test-lab"
-          fi
-
-      - name: Resumen capacidades reales
-        run: |
-          echo "=== RESUMEN CAPACIDADES REALES (Runner ARM64) ==="
-          echo "KVM disponible: ${{ steps.check_kvm.outputs.kvm_available }}"
-          echo "QEMU TCG (software): ${{ steps.check_tcg.outputs.tcg_mode_possible }}"
-          echo "Android Emulator ARM64: ${{ steps.check_emulator.outputs.android_emulator_arm64 }}"
-          echo "Firebase Test Lab: ${{ steps.check_firebase.outputs.firebase_testlab_configured }}"
-          echo ""
-          echo "CONCLUSIONES:"
-          if [ "${{ steps.check_kvm.outputs.kvm_available }}" = "true" ]; then
-            echo "✅ KVM DISPONIBLE -> Emulador ARM64 nativo POSIBLE"
-          else
-            echo "❌ KVM NO DISPONIBLE -> Emulador ARM64 nativo IMPOSIBLE"
-            if [ "${{ steps.check_tcg.outputs.tcg_mode_possible }}" = "true" ]; then
-              echo "⚠️ QEMU TCG disponible pero INUTILIZABLE para CI (demasiado lento)"
-            fi
-          fi
-          if [ "${{ steps.check_firebase.outputs.firebase_testlab_configured }}" = "true" ]; then
-            echo "✅ Firebase Test Lab CONFIGURADO -> Tests en dispositivos físicos ARM64 POSIBLES"
-          fi
-
 # ===================================================================
-# 1. DESCARGAR Y VERIFICAR APK (OBLIGATORIO, SIEMPRE SE EJECUTA)
+# 0. DESCARGAR Y VERIFICAR APK (OBLIGATORIO, SIEMPRE SE EJECUTA)
 # ===================================================================
   fetch-and-verify-apk:
     name: Descargar y verificar APK (obligatorio)
@@ -162,17 +49,21 @@ jobs:
       sha256: ${{ steps.verify_sha.outputs.sha256 }}
     steps:
       - name: Validar entradas
+        env:
+          APK_SOURCE_URL: ${{ github.event.inputs.apk_source_url }}
         run: |
-          if [ -z "${{ github.event.inputs.apk_source_url }}" ]; then
+          if [ -z "$APK_SOURCE_URL" ]; then
             echo "ERROR: apk_source_url requerido"
             exit 1
           fi
-          echo "APK URL: ${{ github.event.inputs.apk_source_url }}"
+          echo "APK URL: $APK_SOURCE_URL"
 
       - name: Descargar APK desde URL verificable
         id: download_apk
+        env:
+          APK_SOURCE_URL: ${{ github.event.inputs.apk_source_url }}
         run: |
-          APK_URL="${{ github.event.inputs.apk_source_url }}"
+          APK_URL="$APK_SOURCE_URL"
           echo "Descargando APK desde: $APK_URL"
           wget -q --show-progress "$APK_URL" -O "${{ env.APK_NAME }}"
           
@@ -185,9 +76,11 @@ jobs:
 
       - name: Verificar SHA-256 del APK (OBLIGATORIO)
         id: verify_sha
+        env:
+          EXPECTED_SHA256: ${{ github.event.inputs.apk_sha256 }}
         run: |
           CALCULATED=$(sha256sum "${{ env.APK_NAME }}" | cut -d' ' -f1)
-          EXPECTED="${{ env.APK_SHA256 }}"
+          EXPECTED="$EXPECTED_SHA256"
           echo "Calculado: $CALCULATED"
           echo "Esperado:  $EXPECTED"
           if [ "$CALCULATED" != "$EXPECTED" ]; then
@@ -220,6 +113,21 @@ jobs:
           echo "ABI: $ABI"
           echo "SHA-256: ${{ steps.verify_sha.outputs.sha256 }}"
 
+      - name: Validar Package ID y ABI esperados
+        env:
+          EXPECTED_PACKAGE_ID: ${{ env.EXPECTED_PACKAGE_ID }}
+          EXPECTED_ABI: ${{ env.EXPECTED_ABI }}
+        run: |
+          if [ "${{ steps.apk_info.outputs.package }}" != "${{ env.EXPECTED_PACKAGE_ID }}" ]; then
+            echo "ERROR: Package ID no coincide. Esperado: ${{ env.EXPECTED_PACKAGE_ID }}, Obtenido: ${{ steps.apk_info.outputs.package }}"
+            exit 1
+          fi
+          if [ "${{ steps.apk_info.outputs.abi }}" != "${{ env.EXPECTED_ABI }}" ]; then
+            echo "ERROR: ABI no coincide. Esperado: ${{ env.EXPECTED_ABI }}, Obtenido: ${{ steps.apk_info.outputs.abi }}"
+            exit 1
+          fi
+          echo "✅ Package ID y ABI validados"
+
       - name: Subir APK como artifact para jobs posteriores
         uses: actions/upload-artifact@v4
         with:
@@ -243,10 +151,11 @@ jobs:
           path: /tmp/
 
       - name: Verificar SHA-256 (obligatorio)
+        env:
+          EXPECTED_SHA256: ${{ needs.fetch-and-verify-apk.outputs.sha256 }}
         run: |
           CALCULATED=$(sha256sum "/tmp/${{ env.APK_NAME }}" | cut -d' ' -f1)
-          EXPECTED="${{ env.APK_SHA256 }}"
-          if [ "$CALCULATED" != "$EXPECTED" ]; then
+          if [ "$CALCULATED" != "$EXPECTED_SHA256" ]; then
             echo "ERROR: SHA-256 mismatch"
             exit 1
           fi
@@ -259,6 +168,32 @@ jobs:
       - name: Verificar contenido lib/arm64-v8a/
         run: |
           unzip -l "/tmp/${{ env.APK_NAME }}" "lib/arm64-v8a/*"
+
+      - name: Validar Package ID y ABI en pruebas estáticas
+        env:
+          EXPECTED_PACKAGE_ID: ${{ env.EXPECTED_PACKAGE_ID }}
+          EXPECTED_ABI: ${{ env.EXPECTED_ABI }}
+        run: |
+          PACKAGE=$(aapt2 dump badging "/tmp/${{ env.APK_NAME }}" | grep -oP "package: name='\K[^']+")
+          ABI=$(aapt2 dump badging "/tmp/${{ env.APK_NAME }}" | grep -oP "native-code: '\K[^']+")
+          if [ "$PACKAGE" != "${{ env.EXPECTED_PACKAGE_ID }}" ]; then
+            echo "ERROR: Package ID no coincide en pruebas estáticas"
+            exit 1
+          fi
+          if [ "$ABI" != "${{ env.EXPECTED_ABI }}" ]; then
+            echo "ERROR: ABI no coincide en pruebas estáticas"
+            exit 1
+          fi
+          echo "✅ Package ID y ABI validados en pruebas estáticas"
+
+      - name: Verificar contenido lib/arm64-v8a/ (librg.so presente)
+        run: |
+          unzip -l "/tmp/${{ env.APK_NAME }}" "lib/arm64-v8a/*" | grep -q "librg.so"
+          if [ $? -ne 0 ]; then
+            echo "ERROR: librg.so no encontrado en lib/arm64-v8a/"
+            exit 1
+          fi
+          echo "✅ librg.so presente en lib/arm64-v8a/"
 
       - name: Documentar limitación
         run: |
@@ -294,10 +229,11 @@ jobs:
           path: .
 
       - name: Verificar SHA-256 (doble verificación)
+        env:
+          EXPECTED_SHA256: ${{ needs.fetch-and-verify-apk.outputs.sha256 }}
         run: |
           CALCULATED=$(sha256sum "${{ env.APK_NAME }}" | cut -d' ' -f1)
-          EXPECTED="${{ env.APK_SHA256 }}"
-          if [ "$CALCULATED" != "$EXPECTED" ]; then
+          if [ "$CALCULATED" != "$EXPECTED_SHA256" ]; then
             echo "ERROR: SHA-256 mismatch"
             exit 1
           fi
@@ -485,9 +421,11 @@ jobs:
           path: /tmp/
 
       - name: Verificar SHA-256
+        env:
+          EXPECTED_SHA256: ${{ needs.fetch-and-verify-apk.outputs.sha256 }}
         run: |
           CALCULATED=$(sha256sum "/tmp/${{ env.APK_NAME }}" | cut -d' ' -f1)
-          if [ "$CALCULATED" != "${{ env.APK_SHA256 }}" ]; then
+          if [ "$CALCULATED" != "$EXPECTED_SHA256" ]; then
             exit 1
           fi
 
@@ -548,14 +486,19 @@ jobs:
         id: install_apk
         run: |
           adb install -r "/tmp/${{ env.APK_NAME }}"
-          adb shell pm list packages ${{ env.PACKAGE_ID }}
-          echo "apk_installed=true" >> $GITHUB_OUTPUT
+          # Verificar que el paquete está realmente instalado
+          if adb shell pm list packages | grep -q "${{ env.EXPECTED_PACKAGE_ID }}"; then
+            echo "apk_installed=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Paquete no encontrado después de instalación"
+            exit 1
+          fi
 
       - name: Verificar librg.so instalado (archivo y ejecución)
         id: test_rg
         run: |
           # Verificar archivo
-          LIB_PATH=$(adb shell ls /data/app/${{ env.PACKAGE_ID }}*/lib/arm64/librg.so 2>/dev/null | head -1)
+          LIB_PATH=$(adb shell ls /data/app/${{ env.EXPECTED_PACKAGE_ID }}*/lib/arm64/librg.so 2>/dev/null | head -1)
           if [ -z "$LIB_PATH" ]; then
             echo "❌ librg.so no encontrado en lib/arm64/"
             exit 1
@@ -563,7 +506,7 @@ jobs:
           echo "✅ librg.so encontrado en: $LIB_PATH"
           
           # Ejecutar con run-as (contexto de la app)
-          RG_OUTPUT=$(adb shell run-as ${{ env.PACKAGE_ID }} "$LIB_PATH" --version 2>&1)
+          RG_OUTPUT=$(adb shell run-as ${{ env.EXPECTED_PACKAGE_ID }} "$LIB_PATH" --version 2>&1)
           RG_EXIT=$?
           echo "rg output: $RG_OUTPUT"
           echo "rg exit code: $RG_EXIT"
@@ -574,11 +517,12 @@ jobs:
           else
             echo "❌ ripgrep no ejecuta nativamente (exit: $RG_EXIT)"
             echo "rg_native_ok=false" >> $GITHUB_OUTPUT
+            exit 1
           fi
 
       - name: Verificar libopencode.so cargado
         run: |
-          LIB_PATH=$(adb shell ls /data/app/${{ env.PACKAGE_ID }}*/lib/arm64/libopencode.so 2>/dev/null | head -1)
+          LIB_PATH=$(adb shell ls /data/app/${{ env.EXPECTED_PACKAGE_ID }}*/lib/arm64/libopencode.so 2>/dev/null | head -1)
           if [ -z "$LIB_PATH" ]; then
             echo "❌ libopencode.so no encontrado"
             exit 1
@@ -588,47 +532,80 @@ jobs:
       - name: Iniciar app y verificar servidor OpenCode
         id: start_app
         run: |
+          # Obtener actividad de lanzamiento desde el manifest
+          MAIN_ACTIVITY=$(adb shell pm resolve-activity --brief -n ${{ env.EXPECTED_PACKAGE_ID }}/.MainActivity 2>/dev/null | cut -d' ' -f1)
+          if [ -z "$MAIN_ACTIVITY" ]; then
+            # Fallback: usar MainActivity conocido
+            MAIN_ACTIVITY="${{ env.EXPECTED_PACKAGE_ID }}/.MainActivity"
+          fi
+          
           # Iniciar actividad principal
-          adb shell am start -n ${{ env.PACKAGE_ID }}/.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
+          adb shell am start -n "$MAIN_ACTIVITY" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
           
           # Esperar a que el servicio inicie (máx 30s)
+          SERVER_READY=false
           for i in {1..30}; do
-            if adb shell "timeout 5 curl -s http://127.0.0.1:4096/api/info" 2>/dev/null | grep -q "version"; then
+            # Usar wget o curl disponible en el dispositivo
+            if adb shell "which curl" >/dev/null 2>&1; then
+              HTTP_CMD="curl -s"
+            elif adb shell "which wget" >/dev/null 2>&1; then
+              HTTP_CMD="wget -qO-"
+            else
+              echo "❌ Ni curl ni wget disponibles en el dispositivo"
+              exit 1
+            fi
+            
+            if adb shell "timeout 5 $HTTP_CMD http://127.0.0.1:4096/api/info" 2>/dev/null | grep -q "version"; then
               echo "✅ Servidor OpenCode respondiendo en puerto 4096"
+              SERVER_READY=true
               break
             fi
             sleep 2
           done
           
+          if [ "$SERVER_READY" = "false" ]; then
+            echo "❌ Servidor OpenCode no respondió en 60s"
+            # Capturar logcat para diagnóstico
+            adb logcat -d -s opencode > /tmp/logcat_server.txt 2>&1
+            cat /tmp/logcat_server.txt
+            exit 1
+          fi
+          
           # Verificar proceso
-          adb shell ps -A | grep ${{ env.PACKAGE_ID }} | head -5
+          adb shell ps -A | grep ${{ env.EXPECTED_PACKAGE_ID }} | head -5
 
       - name: Ejecutar pruebas HTTP reales (servidor OpenCode)
         id: http_tests
         run: |
+          # Determinar cliente HTTP disponible en el dispositivo
+          if adb shell "which curl" >/dev/null 2>&1; then
+            HTTP_CMD="curl -s"
+          elif adb shell "which wget" >/dev/null 2>&1; then
+            HTTP_CMD="wget -qO-"
+          else
+            echo "❌ Ni curl ni wget disponibles en el dispositivo"
+            exit 1
+          fi
+          
           # Test 1: /api/fs/find
           echo "=== Test /api/fs/find ==="
-          # Usar wget si curl no está disponible
-          if command -v curl &> /dev/null; then
-            HTTP_CMD="curl -s"
-          else
-            HTTP_CMD="wget -qO-"
-          fi
-          
-          FS_RESPONSE=$(adb shell "$HTTP_CMD -u opencode:test 'http://127.0.0.1:4096/api/fs/find?query=*&location[directory]=/data/user/0/${{ env.PACKAGE_ID }}/files/home/work'" 2>/dev/null)
+          FS_URL="http://127.0.0.1:4096/api/fs/find?query=*&location[directory]=/data/user/0/${{ env.EXPECTED_PACKAGE_ID }}/files/home/work"
+          FS_RESPONSE=$(adb shell "$HTTP_CMD -u opencode:test '$FS_URL'" 2>/dev/null)
+          FS_HTTP_CODE=$(adb shell "curl -s -o /dev/null -w '%{http_code}' -u opencode:test '$FS_URL'" 2>/dev/null || echo "000")
+          echo "FS HTTP Code: $FS_HTTP_CODE"
           echo "FS Response: $FS_RESPONSE"
           
-          if echo "$FS_RESPONSE" | grep -q '"data"'; then
-            echo "✅ /api/fs/find OK"
+          if [ "$FS_HTTP_CODE" = "200" ] && echo "$FS_RESPONSE" | grep -q '"data"'; then
+            echo "✅ /api/fs/find OK (HTTP 200, JSON válido)"
             echo "fs_find_ok=true" >> $GITHUB_OUTPUT
           else
-            echo "❌ /api/fs/find FAIL o servidor no responde"
+            echo "❌ /api/fs/find FAIL (HTTP: $FS_HTTP_CODE)"
             echo "fs_find_ok=false" >> $GITHUB_OUTPUT
+            exit 1
           fi
           
-          # Test 2: Verificar ripgrep vía HTTP (si el motor lo expone)
-          # Test 3: Verificar ripgrep nativo vía run-as
-          RG_OUTPUT=$(adb shell run-as ${{ env.PACKAGE_ID }} /data/app/${{ env.PACKAGE_ID }}*/lib/arm64/librg.so --version 2>&1)
+          # Test 2: Verificar ripgrep nativo vía run-as
+          RG_OUTPUT=$(adb shell run-as ${{ env.EXPECTED_PACKAGE_ID }} /data/app/${{ env.EXPECTED_PACKAGE_ID }}*/lib/arm64/librg.so --version 2>&1)
           RG_EXIT=$?
           echo "rg version: $RG_OUTPUT"
           
@@ -638,6 +615,7 @@ jobs:
           else
             echo "❌ ripgrep no ejecuta nativamente en contexto app (exit: $RG_EXIT)"
             echo "rg_native_ok=false" >> $GITHUB_OUTPUT
+            exit 1
           fi
 
       - name: Capturar logs como artifact
@@ -650,7 +628,7 @@ jobs:
           retention-days: 7
 
 # ===================================================================
-# 6. FIREBASE TEST LAB (SOLO SI CONFIGURADO Y AUTORIZADO)
+# 6. FIREBASE TEST LAB (SOLO SI CONFIGURADO Y AUTORIZADO EXPLÍCITAMENTE)
 # ===================================================================
   firebase-testlab-tests:
     name: Pruebas en Dispositivos Físicos ARM64 (Firebase Test Lab)
@@ -661,6 +639,7 @@ jobs:
     outputs:
       firebase_test_ok: ${{ steps.firebase_test.outputs.firebase_test_ok }}
       test_type: ${{ steps.firebase_test.outputs.test_type }}
+      test_matrix_id: ${{ steps.firebase_test.outputs.test_matrix_id }}
     steps:
       - name: Validar credenciales Firebase
         run: |
@@ -684,9 +663,11 @@ jobs:
           path: /tmp/
 
       - name: Verificar SHA-256
+        env:
+          EXPECTED_SHA256: ${{ needs.fetch-and-verify-apk.outputs.sha256 }}
         run: |
           CALCULATED=$(sha256sum "/tmp/${{ env.APK_NAME }}" | cut -d' ' -f1)
-          if [ "$CALCULATED" != "${{ env.APK_SHA256 }}" ]; then
+          if [ "$CALCULATED" != "$EXPECTED_SHA256" ]; then
             exit 1
           fi
 
@@ -716,35 +697,41 @@ jobs:
           path: /tmp/
 
       - name: Verificar SHA-256
+        env:
+          EXPECTED_SHA256: ${{ needs.fetch-and-verify-apk.outputs.sha256 }}
         run: |
           CALCULATED=$(sha256sum "/tmp/${{ env.APK_NAME }}" | cut -d' ' -f1)
-          if [ "$CALCULATED" != "${{ env.APK_SHA256 }}" ]; then
+          if [ "$CALCULATED" != "$EXPECTED_SHA256" ]; then
             exit 1
           fi
 
       - name: Ejecutar test de instalación en Firebase Test Lab
         id: firebase_test
+        env:
+          MODEL_ID: ${{ steps.list_models.outputs.model_id }}
+          VERSION_ID: ${{ steps.list_models.outputs.version_id }}
         run: |
           echo "=== Ejecutando test de instalación (Robo) en Firebase Test Lab ==="
-          echo "Modelo: ${{ steps.list_models.outputs.model_id }}"
-          echo "API: ${{ steps.list_models.outputs.version_id }}"
+          echo "Modelo: $MODEL_ID"
+          echo "API: $VERSION_ID"
           
           gcloud firebase test android run \
             --type=robo \
             --app="/tmp/${{ env.APK_NAME }}" \
-            --device=model=${{ steps.list_models.outputs.model_id }},version=${{ steps.list_models.outputs.version_id }},locale=en,orientation=portrait \
+            --device=model=$MODEL_ID,version=$VERSION_ID,locale=en,orientation=portrait \
             --timeout=5m \
             --results-bucket=gs://${{ secrets.FIREBASE_PROJECT_ID }}-test-lab \
             --results-dir=fase3b2-${{ github.run_number }} \
             --directories-to-pull=/sdcard/Download,/data/local/tmp \
             2>&1 | tee /tmp/firebase_test.log
           
-          # Obtener ID del test
-          TEST_ID=$(gcloud firebase test android list --format="value(test_id)" --limit=1 2>/dev/null)
-          echo "Test ID: $TEST_ID"
+          # Obtener ID de la matriz de prueba de ESTA ejecución
+          TEST_MATRIX_ID=$(gcloud firebase test android list --format="value(test_matrix_id)" --limit=1 2>/dev/null)
+          echo "Test Matrix ID: $TEST_MATRIX_ID"
+          echo "test_matrix_id=$TEST_MATRIX_ID" >> $GITHUB_OUTPUT
           
-          # Esperar y obtener resultados
-          gcloud firebase test android describe "$TEST_ID" --format="json" > /tmp/firebase_result.json 2>&1
+          # Esperar y obtener resultados de ESTA matriz
+          gcloud firebase test android describe "$TEST_MATRIX_ID" --format="json" > /tmp/firebase_result.json 2>&1
           
           # Verificar si la instalación fue exitosa
           if cat /tmp/firebase_result.json | grep -q '"outcome": "SUCCESS"'; then
@@ -793,10 +780,32 @@ jobs:
           APK_INSTALLED: ${{ needs.functional-tests-arm64.outputs.apk_installed }}
           RG_NATIVE: ${{ needs.functional-tests-arm64.outputs.rg_native_ok }}
           FS_FIND_OK: ${{ needs.functional-tests-arm64.outputs.fs_find_ok }}
-          RG_NATIVE_HTTP: ${{ needs.functional-tests-arm64.outputs.rg_native_ok_http }}
           FIREBASE_OK: ${{ needs.firebase-testlab-tests.outputs.firebase_test_ok }}
           FIREBASE_TYPE: ${{ needs.firebase-testlab-tests.outputs.test_type }}
         run: |
+          # Calcular estados condicionales en Bash real
+          if [ "$KVM_AVAILABLE" = "false" ]; then
+            KVM_STATUS="ACTIVO"
+            KVM_SOLUTION="Self-hosted runner ARM64 con KVM"
+          else
+            KVM_STATUS="RESUELTO"
+            KVM_SOLUTION="N/A"
+          fi
+          
+          if [ "$TCG_POSSIBLE" = "true" ]; then
+            TCG_STATUS="ACTIVO (inutilizable)"
+          else
+            TCG_STATUS="N/A"
+          fi
+          
+          if [ "$FIREBASE_CONFIGURED" = "false" ]; then
+            FIREBASE_STATUS="ACTIVO"
+            FIREBASE_SOLUTION="Agregar secrets FIREBASE_PROJECT_ID + GCP_SA_KEY"
+          else
+            FIREBASE_STATUS="CONFIGURADO"
+            FIREBASE_SOLUTION="N/A"
+          fi
+          
           cat << EOF > fase3b2-e2e-final-report.md
           # Reporte Final Fase 3B-2 E2E Tests
           
@@ -863,9 +872,9 @@ jobs:
           
           | Bloqueo | Estado | Solución |
           |---------|--------|----------|
-          | GitHub Actions sin KVM | ${KVM_AVAILABLE == 'false' && 'ACTIVO' || 'RESUELTO'} | Self-hosted runner ARM64 con KVM |
-          | Emulador ARM64 en TCG | ${TCG_POSSIBLE == 'true' && 'ACTIVO (inutilizable)' || 'N/A'} | No usar para CI (lento) |
-          | Firebase Test Lab no configurado | ${FIREBASE_CONFIGURED == 'false' && 'ACTIVO' || 'CONFIGURADO'} | Agregar secrets FIREBASE_PROJECT_ID + GCP_SA_KEY |
+          | GitHub Actions sin KVM | ${KVM_STATUS} | Self-hosted runner ARM64 con KVM |
+          | Emulador ARM64 en TCG | ${TCG_STATUS} | No usar para CI (lento) |
+          | Firebase Test Lab no configurado | ${FIREBASE_STATUS} | Agregar secrets FIREBASE_PROJECT_ID + GCP_SA_KEY |
           | Self-hosted runner ARM64 | **ACTIVO** | Configurar runner ARM64 bare-metal |
           
           ## Costos Estimados Alternativas
@@ -906,10 +915,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Estado |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Verificar capacidades ARM64 | ${{ needs.check-arm64-capabilities.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Descargar y verificar APK | ${{ needs.fetch-and-verify-apk.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Pruebas Estáticas (x86_64) | ${{ needs.static-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Preparar Release (opcional) | ${{ needs.prepare-release.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Verificar capacidades ARM64 | ${{ needs.check-arm64-capabilities.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Pruebas Funcionales ARM64 (KVM) | ${{ needs.functional-tests-arm64.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Firebase Test Lab (físicos) | ${{ needs.firebase-testlab-tests.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
